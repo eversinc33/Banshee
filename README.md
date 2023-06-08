@@ -95,7 +95,7 @@ Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly li
 * Registry key and file protection
 * MSR hooking à la https://www.cyberark.com/resources/threat-research-blog/fantastic-rootkits-and-where-to-find-them-part-1
 * GPU shenanigans
-* Usability
+* Usability, refactor driver to C++
 * Communication over direct TCP to bypass `netstat` and others
 * Locks, dereferencing, ... - stability basically
 * Hiding only on special ocassion, e.g. on opening of task manager, to avoid patchguard crashes
