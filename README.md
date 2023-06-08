@@ -68,23 +68,23 @@ For this feature, `INTEGRITYCHECK` has to be specified when linking (https://lea
 
 ### Change protection level of any process by PID 
 
-This is done by modifying the `EPROCESS` structur, which is an kernel object that describes a processes attributes. It also holds a value that specifies the protection level of the process. 
+This is done by modifying the `EPROCESS` structure, which is an kernel object that describes a processes attributes. It also holds a value that specifies the protection level of the process. 
 
 On my machine, that value can be found at offset `0x87a`:
  
 ![](./img/EPROCESS_Protection.png)
 
-We can directly modify this value (aka Direct Kernel Object Modification or DKOM), since we are operating in Ring 0.
+We can directly modify this value (via Direct Kernel Object Modification aka DKOM), since we are operating in Ring 0.
 
 The values for the different protection levels can be found e.g. in Windows Internals Part 1 (page 115 in the 7th edition (english)).
 
 ### Elevate any process token to SYSTEM
 
-`EPROCESS` also holds a pointer to the current access token, so we can just make it point to e.g. the token of process 4 (`SYSTEM`) to elevate any process to `SYSTEM`.
+`EPROCESS` also holds a pointer to the current process access token, so we can just make it point to e.g. the token of process 4 (`SYSTEM`) to elevate any process to `SYSTEM`.
 
 ### Hide Process by PID
 
-Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly linked list called `ActiveProcessLink` which is queried by Windows to enumerate running processes. If we simply unlink an entry here, we can hide our process from tools like Process Monitor or Task Manager.
+Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` part of a doubly linked list called `ActiveProcessLink` which is queried by Windows to enumerate running processes. If we simply unlink an entry here, we can hide our process from tools like Process Monitor or Task Manager.
 
 * This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory.
 
@@ -98,7 +98,7 @@ Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly li
 * Usability, refactor driver to C++
 * Communication over direct TCP to bypass `netstat` and others
 * Locks, dereferencing, ... - stability basically
-* Hiding only on special ocassion, e.g. on opening of task manager, to avoid patchguard crashes
+* Hiding only on special occasions, e.g. on opening of task manager, to avoid patchguard crashes
 * Backdoor authentication as described in the phrack article linked above
 
 ## Credits
