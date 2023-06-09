@@ -125,12 +125,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Driver.cpp" />
+    <ClInclude Include="AddressUtils.hpp" />
+    <ClInclude Include="KernelCallbacks.hpp" />
     <ClInclude Include="WinTypes.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DriverMeta.hpp" />
     <ClInclude Include="Globals.hpp" />
-    <ClInclude Include="Ioctls.hpp" />
+    <ClInclude Include="IOCTLS.hpp" />
     <ClInclude Include="Misc.hpp" />
     <ClInclude Include="ProcessUtils.hpp" />
   </ItemGroup>

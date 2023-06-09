@@ -2,7 +2,6 @@
 #include <ntifs.h>
 #include <wdf.h>
 
-// Bshe
 #define DRIVER_TAG 'ehsB'
 
 // Device names

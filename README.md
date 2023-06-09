@@ -70,7 +70,7 @@ For this feature, `INTEGRITYCHECK` has to be specified when linking (https://lea
 
 This is done by modifying the `EPROCESS` structur, which is an kernel object that describes a processes attributes. It also holds a value that specifies the protection level of the process. 
 
-On my machine, that value can be found at offset `0x87a`:
+On my machine, that value can be found at offset `0x87a`. Since that offset is dynamic, we can dynamically parse it from `PspIsProtectedProcessLight` instead of hardcoding it (thanks [@never_unsealed](https://twitter.com/never_unsealed) for the trick):
  
 ![](./img/EPROCESS_Protection.png)
 

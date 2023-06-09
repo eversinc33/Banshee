@@ -3,7 +3,7 @@
 
 #include "DriverMeta.hpp"
 #include "Globals.hpp"
-#include "Ioctls.hpp"
+#include "IOCTLS.hpp"
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -85,7 +85,6 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     DbgPrint("DriverEntry Called \r\n");
 
     NTSTATUS NtStatus = STATUS_SUCCESS;
-    ULONG uiIndex = 0;
     PDEVICE_OBJECT pDeviceObject = NULL;
 
     NtStatus = IoCreateDevice(
@@ -101,7 +100,7 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     pDriverObject->DriverUnload = (PDRIVER_UNLOAD)BeUnload;
 
     // IRP Major Requests
-    for (uiIndex = 0; uiIndex < IRP_MJ_MAXIMUM_FUNCTION; uiIndex++)
+    for (ULONG uiIndex = 0; uiIndex < IRP_MJ_MAXIMUM_FUNCTION; uiIndex++)
     {
         pDriverObject->MajorFunction[uiIndex] = (PDRIVER_DISPATCH)BeUnSupportedFunction;
     }

