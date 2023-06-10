@@ -89,14 +89,14 @@ main(INT argc, CHAR *argv[])
         {
             std::string pathToDriver = AskInputNoPrompt("Path to driver: ");
             status = banshee.Install(pathToDriver);
+            if (status == BE_SUCCESS)
+            {
+                status = banshee.Initialize();
+            }
         }
         else if (choice == "unload")
         {
             status = banshee.Unload();
-        }
-        else if (choice == "load")
-        {
-            status = banshee.IoCtlTestDriver();
         }
         else if (choice == "kill")
         {

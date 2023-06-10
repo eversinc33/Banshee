@@ -19,7 +19,7 @@ BeUnload(PDRIVER_OBJECT DriverObject)
     DbgPrint("Unload Called \r\n");
 
     // Remove our bury routine if we set one
-    if(BeGlobals::buryProcess.buryRoutineAdded)
+    if(BeGlobals::beBuryTargetProcesses.length != 0)
     {
         if (PsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE) == STATUS_SUCCESS)
         {
@@ -29,8 +29,18 @@ BeUnload(PDRIVER_OBJECT DriverObject)
         {
             DbgPrint("Failed to remove routine!\n");
         }
-        // free global memory for wstr
-        ExFreePoolWithTag(BeGlobals::buryProcess.beBuryTargetProcessName, DRIVER_TAG);
+        // free global memory for bury process wstrs
+        ExAcquireFastMutex(&BeGlobals::beBuryMutex); // wait for any currently running callbacks that access the array to finish
+        while(BeGlobals::beBuryTargetProcesses.length >= 0)
+        {
+            if (BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] != NULL)
+            {
+                ExFreePoolWithTag(BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length], DRIVER_TAG);
+                BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] = NULL;
+            }
+            BeGlobals::beBuryTargetProcesses.length--;
+        }
+        ExReleaseFastMutex(&BeGlobals::beBuryMutex);
     }
         
     IoDeleteSymbolicLink(&usDosDeviceName);

