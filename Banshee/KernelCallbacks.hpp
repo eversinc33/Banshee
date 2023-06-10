@@ -4,6 +4,7 @@
 #include <wdf.h>
 #include "Globals.hpp"
 #include "WinTypes.hpp"
+#include "Misc.hpp"
 
 /**
  * "Burying" functionality - this is callback on process creation that blocks the specified process from being recreated.
@@ -29,7 +30,7 @@ BeBury_ProcessNotifyRoutineEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NO
             if (!BeIsStringNull(BeGlobals::beBuryTargetProcesses.array[i]))
             {
                 // ... if its one we want to bury ...
-                if (_strcmpi_w(
+                if (StrStrIW(
                     CreateInfo->ImageFileName->Buffer,
                     BeGlobals::beBuryTargetProcesses.array[i]
                 ) != NULL) 

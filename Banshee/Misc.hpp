@@ -41,24 +41,16 @@ BeIsStringTerminated(PWCHAR Array, ULONG ArrayLength)
 }
 
 /*
- * Converts a wchar to lowercase
+ * compares two wchar strings without case sensitivity
  * 
- * @returns wchar_t wchar in lowercase
+ * @param s1 first string
+ * @param s2 second string 
+ * @return INT 0 if both string are qual
  */
-__forceinline wchar_t locase_w(wchar_t c)
+INT
+_strcmpi_w(const wchar_t* s1, const wchar_t* s2)
 {
-    if ((c >= 'A') && (c <= 'Z'))
-        return c + 0x20;
-    else
-        return c;
-}
-
-/*
- * compares two wchars without case sensitivity
- */
-int _strcmpi_w(const wchar_t* s1, const wchar_t* s2)
-{
-    wchar_t c1, c2;
+    WCHAR c1, c2;
 
     if (s1 == s2)
         return 0;
@@ -70,11 +62,50 @@ int _strcmpi_w(const wchar_t* s1, const wchar_t* s2)
         return 1;
 
     do {
-        c1 = locase_w(*s1);
-        c2 = locase_w(*s2);
+        c1 = RtlUpcaseUnicodeChar(*s1);
+        c2 = RtlUpcaseUnicodeChar(*s2);
         s1++;
         s2++;
     } while ((c1 != 0) && (c1 == c2));
 
-    return (int)(c1 - c2);
+    return (INT)(c1 - c2);
+}
+
+/*
+ * check if a wide string contains a substring without case sensitivity
+ * 
+ * @param String string to check
+ * @param Pattern pattern to look for
+ * @return PWCHAR NULL if no match is found, otherwise a pointer to the match
+ */
+PWCHAR
+StrStrIW(const PWCHAR String, const PWCHAR Pattern)
+{
+      PWCHAR pptr, sptr, start;
+
+      for (start = (PWCHAR)String; *start != NULL; ++start)
+      {
+            while (((*start!=NUL) && (RtlUpcaseUnicodeChar(*start) 
+                    != RtlUpcaseUnicodeChar(*Pattern))))
+            {
+                ++start;
+            }
+
+            if (NULL == *start)
+                  return NULL;
+
+            pptr = (PWCHAR)Pattern;
+            sptr = (PWCHAR)start;
+
+            while (RtlUpcaseUnicodeChar(*sptr) == RtlUpcaseUnicodeChar(*pptr))
+            {
+                  sptr++;
+                  pptr++;
+
+                  if (NULL == *pptr)
+                        return (start);
+            }
+      }
+
+      return NULL;
 }
