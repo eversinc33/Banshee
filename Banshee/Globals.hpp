@@ -17,16 +17,20 @@ namespace BeGlobals
     WCHAR_ARRAY beBuryTargetProcesses = { { NULL }, 0};
     FAST_MUTEX beBuryMutex;
     PVOID NtOsKrnlAddr;
+    PDRIVER_OBJECT driverObject;
 
     VOID
     BeInitGlobals(PDRIVER_OBJECT DriverObject)
     {
+        // globals
+        driverObject = DriverObject;
+
         // Init mutexes
         ExInitializeFastMutex(&beBuryMutex);
        
         // Get base address of ntoskrnl module
         NtOsKrnlAddr = BeGetKernelBaseAddr(DriverObject);
-        DbgPrint("notskrnl.exe base addr:0x%llx", (UINT64)NtOsKrnlAddr);
+        LOG_MSG("ntoskrnl.exe base addr:0x%llx", (UINT64)NtOsKrnlAddr);
     }
 }
 

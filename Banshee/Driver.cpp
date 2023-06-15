@@ -16,18 +16,18 @@
 NTSTATUS
 BeUnload(PDRIVER_OBJECT DriverObject)
 {
-    DbgPrint("Unload Called \r\n");
+    LOG_MSG("Unload Called \r\n");
 
     // Remove our bury routine if we set one
     if(BeGlobals::beBuryTargetProcesses.length != 0)
     {
         if (PsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE) == STATUS_SUCCESS)
         {
-            DbgPrint("Removed routine!\n");
+            LOG_MSG("Removed routine!\n");
         }
         else
         {
-            DbgPrint("Failed to remove routine!\n");
+            LOG_MSG("Failed to remove routine!\n");
         }
         // free global memory for bury process wstrs
         ExAcquireFastMutex(&BeGlobals::beBuryMutex); // wait for any currently running callbacks that access the array to finish
@@ -60,7 +60,7 @@ BeClose(PDEVICE_OBJECT pDeviceObject, PIRP Irp)
 {
     UNREFERENCED_PARAMETER(pDeviceObject);
     UNREFERENCED_PARAMETER(Irp);
-    DbgPrint("Close Called \r\n");
+    LOG_MSG("Close Called \r\n");
     return STATUS_SUCCESS;
 }
 
@@ -76,7 +76,7 @@ BeCreate(PDEVICE_OBJECT pDeviceObject, PIRP Irp)
 {
     UNREFERENCED_PARAMETER(pDeviceObject);
     UNREFERENCED_PARAMETER(Irp);
-    DbgPrint("Create Called \r\n");
+    LOG_MSG("Create Called \r\n");
     return STATUS_SUCCESS;
 }
 
@@ -92,7 +92,7 @@ NTSTATUS
 DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
 {
     UNREFERENCED_PARAMETER(pRegistryPath);
-    DbgPrint("DriverEntry Called \r\n");
+    LOG_MSG("DriverEntry Called \r\n");
 
     NTSTATUS NtStatus = STATUS_SUCCESS;
     PDEVICE_OBJECT pDeviceObject = NULL;
@@ -118,7 +118,6 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     pDriverObject->MajorFunction[IRP_MJ_CREATE] = (PDRIVER_DISPATCH)BeCreate;             // CreateFile
     pDriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = (PDRIVER_DISPATCH)BeIoControl;  // DeviceIoControl
     
-    // Init globals
     BeGlobals::BeInitGlobals(pDriverObject);
 
     NtStatus = IoCreateSymbolicLink(&usDosDeviceName, &usDriverName); // Symbolic Link simply maps a DOS Device Name to an NT Device Name.

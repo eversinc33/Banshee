@@ -28,6 +28,14 @@ typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
 
 #define BE_IOCTL_HIDE_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
+#define BE_IOCTL_ENUMERATE_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+typedef struct _CALLBACK_DATA {
+    UINT64 driverBase;
+    UINT64 offset;
+    WCHAR driverName[64];
+} CALLBACK_DATA;
+
 // --------------------------------------------------------------------------------------------------------
 
 enum BANSHEE_STATUS 
@@ -325,6 +333,42 @@ public:
             return BE_ERR_IOCTL;
         }
 
+        return BE_SUCCESS;
+    }
+
+    /**
+     * Dispatches IOCTL to enumerate kernel callbacks
+     *
+     * @param std::vector<CALLBACK_DATA> Buffer for the output data
+     * @return BANSHEE_STATUS status code.
+     */
+    BANSHEE_STATUS
+    IoCtlEnumerateCallbacks(std::vector<CALLBACK_DATA>& dataOut)
+    {
+        DWORD dwBytesReturned = 0;
+        auto outBuf = new CALLBACK_DATA[64]; // TODO: max amount of callbacks as constant
+        RtlSecureZeroMemory(outBuf, sizeof(CALLBACK_DATA) * 64);
+#
+        BOOL success = DeviceIoControl(
+            this->hDevice,
+            BE_IOCTL_ENUMERATE_CALLBACKS,
+            (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 64, // TODO: max amount of callbacks as constant
+            (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 64,
+            &dwBytesReturned, NULL
+        );
+
+        if (!success)
+        {
+            delete[] outBuf;
+            return BE_ERR_IOCTL;
+        }
+
+        for (INT i = 0; i < dwBytesReturned / sizeof(CALLBACK_DATA); ++i)
+        {
+            dataOut.push_back(outBuf[i]);
+        }
+
+        delete[] outBuf;
         return BE_SUCCESS;
     }
 

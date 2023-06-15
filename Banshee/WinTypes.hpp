@@ -4,6 +4,13 @@
 #include <wdf.h>
 #include "Misc.hpp"
 
+#define ASM_CALL_NEAR 0xE8
+#define ASM_JMP_NEAR 0xE9
+#define ASM_LEA_R13_BYTE1 0x4C
+#define ASM_LEA_R13_BYTE2 0x8D
+#define ASM_LEA_RCX_BYTE1 0x48
+#define ASM_LEA_RCX_BYTE2 0x8D
+
 // --------------------------------------------------------------------------------------------------------
 
 typedef struct _NON_PAGED_DEBUG_INFO
@@ -73,3 +80,13 @@ BYTE PS_PROTECTED_ANTIMALWARE_LIGHT = 0x31; // PPL Anti - malware
 BYTE PS_PROTECTED_AUTHENTICODE = 0x21; // Geschützt Authenticode
 BYTE PS_PROTECTED_AUTHENTICODE_LIGHT = 0x11; // PPL Authenticode
 BYTE PS_PROTECTED_NONE = 0x00; // Keine Keine
+
+// reactos kernel callback structs
+
+typedef struct _EX_CALLBACK_ROUTINE_BLOCK
+{
+    EX_RUNDOWN_REF RundownProtect;
+    PEX_CALLBACK_FUNCTION Function;
+    PVOID Context;
+} EX_CALLBACK_ROUTINE_BLOCK, * PEX_CALLBACK_ROUTINE_BLOCK;
+

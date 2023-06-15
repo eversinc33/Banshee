@@ -2,7 +2,8 @@
 
 #include <ntifs.h>
 
-// TODO: add formatted debug print method with driver prefix
+#define DRIVER_LOG_PREFIX "::[Banshee] - "
+#define LOG_MSG(x, ...) DbgPrint((DRIVER_LOG_PREFIX x), __VA_ARGS__)
 
 /*
  * Check whether a wstring is a nullpointer or contains only null characters
@@ -85,8 +86,7 @@ StrStrIW(const PWCHAR String, const PWCHAR Pattern)
 
       for (start = (PWCHAR)String; *start != NULL; ++start)
       {
-            while (((*start!=NUL) && (RtlUpcaseUnicodeChar(*start) 
-                    != RtlUpcaseUnicodeChar(*Pattern))))
+            while (((*start!=NULL) && (RtlUpcaseUnicodeChar(*start) != RtlUpcaseUnicodeChar(*Pattern))))
             {
                 ++start;
             }
@@ -108,4 +108,26 @@ StrStrIW(const PWCHAR String, const PWCHAR Pattern)
       }
 
       return NULL;
+}
+
+/*
+ * Gets the base name of a full file path
+ * Taken from: https://github.com/GetRektBoy724/DCMB/blob/main/DCMB/dcmb.c#L3
+ * 
+ * @returns PCHAR base name
+ */
+PCHAR 
+GetBaseNameFromFullPath(PCHAR FullName) 
+{
+    SIZE_T FullNameLength = strlen(FullName);
+
+    for (SIZE_T i = FullNameLength; i > 0; i--) 
+    {
+        if (*(FullName + i) == '\\') 
+        {
+            return FullName + i + 1;
+        }
+    }
+
+    return NULL;
 }

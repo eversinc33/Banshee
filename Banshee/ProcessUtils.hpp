@@ -17,7 +17,7 @@ BeGetEprocessByPid(ULONG pid)
     PEPROCESS process;
     if (PsLookupProcessByProcessId(ULongToHandle(pid), &process) != 0)
     {
-        DbgPrint("PID %i not found \r\n", (ULONG)pid);
+        LOG_MSG("PID %i not found \r\n", (ULONG)pid);
         return NULL;
     }
     return process;

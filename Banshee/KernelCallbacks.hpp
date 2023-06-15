@@ -22,7 +22,7 @@ BeBury_ProcessNotifyRoutineEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NO
 
     if (CreateInfo) // If new process is created ...
     {
-        DbgPrint("Process Creation %i: %wZ \r\n", HandleToUlong(ProcessId), CreateInfo->ImageFileName);
+        LOG_MSG("Process Creation %i: %wZ \r\n", HandleToUlong(ProcessId), CreateInfo->ImageFileName);
 
         // ... check for each process
         for (INT i = 0; i < BeGlobals::beBuryTargetProcesses.length; ++i)
@@ -35,7 +35,7 @@ BeBury_ProcessNotifyRoutineEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NO
                     BeGlobals::beBuryTargetProcesses.array[i]
                 ) != NULL) 
                 {
-                    DbgPrint("Blocking buried process from starting. \r\n");
+                    LOG_MSG("Blocking buried process from starting. \r\n");
                     // ... then block it by setting the creation status to denied
                     CreateInfo->CreationStatus = STATUS_ACCESS_DENIED;
                 }

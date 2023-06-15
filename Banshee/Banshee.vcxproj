@@ -124,9 +124,11 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CallbackUtils.hpp" />
     <ClCompile Include="Driver.cpp" />
     <ClInclude Include="AddressUtils.hpp" />
     <ClInclude Include="KernelCallbacks.hpp" />
+    <ClInclude Include="Vector.hpp" />
     <ClInclude Include="WinTypes.hpp" />
   </ItemGroup>
   <ItemGroup>

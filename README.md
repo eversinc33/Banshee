@@ -88,6 +88,10 @@ Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly li
 
 * This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory.
 
+### Enumerating kernel callbacks
+
+For now, only Process-Creation kernel callbacks are enumerated, by parsing the `PsSetCreateNotifyProcess` routine to reach the private `Psp*` routine and then parsing the address of the array, where kernel callbacks are stored. This is WIP code.
+
 ## TODO
 
 * Shellcode injection from kernel land
@@ -100,6 +104,8 @@ Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly li
 * Locks, dereferencing, ... - stability basically
 * Hiding only on special ocassion, e.g. on opening of task manager, to avoid patchguard crashes
 * Backdoor authentication as described in the phrack article linked above
+* removing kernel callbacks
+* more kernel callbacks
 
 ## Credits
 

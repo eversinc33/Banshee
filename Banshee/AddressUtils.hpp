@@ -17,7 +17,7 @@ BeGetAccessTokenOffset()
     RTL_OSVERSIONINFOW osVersion = { sizeof(osVersion) };
     RtlGetVersion(&osVersion);
 
-    DbgPrint("Running on %i", osVersion.dwBuildNumber);
+    LOG_MSG("Running on %i", osVersion.dwBuildNumber);
 
     ULONG tokenOffset = 0;
 
@@ -41,7 +41,7 @@ BeGetAccessTokenOffset()
         break;
     }
 
-    DbgPrint("Token offset: %i", tokenOffset);
+    LOG_MSG("Token offset: %i", tokenOffset);
     return tokenOffset;
 }
 
@@ -57,7 +57,7 @@ BeGetProcessLinkedListOffset()
     RTL_OSVERSIONINFOW osVersion = { sizeof(osVersion) };
     RtlGetVersion(&osVersion);
 
-    DbgPrint("Running on %i", osVersion.dwBuildNumber);
+    LOG_MSG("Running on %i", osVersion.dwBuildNumber);
 
     ULONG activeProcessLinks = 0;
 
