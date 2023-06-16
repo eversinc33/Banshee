@@ -92,6 +92,8 @@ Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly li
 
 For now, only Process- and Thread-Creation kernel callbacks are enumerated, by parsing the `PsSetCreateNotifyProcess/ThreadRoutine` routine to reach the private `Psp*` routine and then parsing the address of the array, where kernel callbacks are stored. This is WIP code.
 
+![](./img/Callbacks.png)
+
 ## TODO
 
 * Shellcode injection from kernel land
