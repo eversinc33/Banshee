@@ -15,7 +15,7 @@ BeEnumerateDrivers()
 
     while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
     {
-		LOG_MSG("Driver: %ls - 0x%llx", entry->BaseDllName.Buffer, entry->DllBase);
+		LOG_MSG("Driver: 0x%llx :: %ls", entry->DllBase, entry->BaseDllName.Buffer);
         entry = (PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink;
     }
 }
@@ -32,16 +32,22 @@ BeGetDriverForAddress(UINT64 address)
 	PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::driverObject)->DriverSection;
 	PKLDR_DATA_TABLE_ENTRY first = entry;
 
+	LOG_MSG("Looking for address: 0x%llx", address);
+
+	// HACK: TODO: drivers are not sorted by address, so i do stupid shit here
+	PKLDR_DATA_TABLE_ENTRY currentBestMatch = NULL;
 	while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
 	{
-		if (UINT64(((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink)->DllBase) > address)
+		UINT64 startAddr = UINT64(entry->DllBase);
+		UINT64 endAddr = UINT64(((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink)->DllBase);
+		if (address >= startAddr && (currentBestMatch == NULL || startAddr > UINT64(currentBestMatch->DllBase)))
 		{
-			return entry;
+			currentBestMatch = entry;
 		}
 		entry = (PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink;
 	}
 
-	return NULL;
+	return currentBestMatch;
 }
 
 /**
@@ -53,6 +59,7 @@ BeGetDriverForAddress(UINT64 address)
 UINT64
 BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 {
+	BeEnumerateDrivers();
 	UNICODE_STRING callbackRoutineName;
 
 	switch (type)
