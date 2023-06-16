@@ -11,6 +11,11 @@
 #define ASM_LEA_RCX_BYTE1 0x48
 #define ASM_LEA_RCX_BYTE2 0x8D
 
+enum CALLBACK_TYPE {
+    CreateProcessNotifyRoutine = 0,
+    CreateThreadNotifyRoutine = 1
+};
+
 // --------------------------------------------------------------------------------------------------------
 
 typedef struct _NON_PAGED_DEBUG_INFO

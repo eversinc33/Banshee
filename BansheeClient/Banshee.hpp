@@ -28,7 +28,14 @@ typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
 
 #define BE_IOCTL_HIDE_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
-#define BE_IOCTL_ENUMERATE_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define BE_IOCTL_ENUMERATE_PROCESS_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define BE_IOCTL_ENUMERATE_THREAD_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+enum CALLBACK_TYPE {
+    CreateProcessNotifyRoutine = 0,
+    CreateThreadNotifyRoutine = 1
+};
 
 typedef struct _CALLBACK_DATA {
     UINT64 driverBase;
@@ -339,19 +346,34 @@ public:
     /**
      * Dispatches IOCTL to enumerate kernel callbacks
      *
-     * @param std::vector<CALLBACK_DATA> Buffer for the output data
+     * @param type Type of kernel callback to resolve
+     * @param dataOut Vector for the output data
      * @return BANSHEE_STATUS status code.
      */
     BANSHEE_STATUS
-    IoCtlEnumerateCallbacks(std::vector<CALLBACK_DATA>& dataOut)
+    IoCtlEnumerateCallbacks(const CALLBACK_TYPE& type, std::vector<CALLBACK_DATA>& dataOut)
     {
         DWORD dwBytesReturned = 0;
         auto outBuf = new CALLBACK_DATA[64]; // TODO: max amount of callbacks as constant
         RtlSecureZeroMemory(outBuf, sizeof(CALLBACK_DATA) * 64);
 #
+        ULONG IOCTL;
+        switch (type) 
+        {
+        case CreateProcessNotifyRoutine:
+            IOCTL = BE_IOCTL_ENUMERATE_PROCESS_CALLBACKS;
+            break;
+        case CreateThreadNotifyRoutine:
+            IOCTL = BE_IOCTL_ENUMERATE_THREAD_CALLBACKS;
+            break;
+        default:
+            return BE_ERR_GENERIC;
+            break;
+        }
+
         BOOL success = DeviceIoControl(
             this->hDevice,
-            BE_IOCTL_ENUMERATE_CALLBACKS,
+            IOCTL,
             (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 64, // TODO: max amount of callbacks as constant
             (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 64,
             &dwBytesReturned, NULL

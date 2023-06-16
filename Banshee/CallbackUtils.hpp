@@ -2,6 +2,7 @@
 
 #include "Globals.hpp"
 #include "Vector.hpp"
+#include "WinTypes.hpp"
 
 /**
  * Enumerates loaded drivers by parsing the driver section inloadorder linked list
@@ -46,97 +47,116 @@ BeGetDriverForAddress(UINT64 address)
 /**
  * Gets the address of the array where kernel callbacks are stored
  * 
- * @return UINT64 address of the ProcessCreateNotifyRoutine array
+ * @param type Type of callback to resolve
+ * @return UINT64 address of the callbackRoutine array
  */
 UINT64
-BeGetKernelCallbackArrayAddr_ProcessCreate()
+BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 {
-	UNICODE_STRING processCreateNotifyRoutineName = RTL_CONSTANT_STRING(L"PsSetCreateProcessNotifyRoutine");
-	UINT64 processCreateNotifyRoutineAddr = 0;
-	UINT64 psp_processCreateNotifyRoutineAddr = 0;
-	UINT64 processCreateNotifyRoutineArrayAddr = 0;
+	UNICODE_STRING callbackRoutineName;
 
-	// Resolve PsSetCreateProcessNotifyRoutine
-	processCreateNotifyRoutineAddr = (DWORD64)MmGetSystemRoutineAddress(&processCreateNotifyRoutineName);
-
-	if (!processCreateNotifyRoutineAddr)
+	switch (type)
 	{
-		LOG_MSG("Failed to resolve PsSetCreateProcessNotifyRoutine");
+	case CreateProcessNotifyRoutine:
+		callbackRoutineName = RTL_CONSTANT_STRING(L"PsSetCreateProcessNotifyRoutine");
+		break;
+	case CreateThreadNotifyRoutine:
+		callbackRoutineName = RTL_CONSTANT_STRING(L"PsSetCreateThreadNotifyRoutine");
+		break;
+	default:
+		LOG_MSG("Unsupported callback type");
 		return 0;
 	}
 
-	// Now resolve PspSetCreateProcessNotifyRoutine
-	// we look for CALL/JMP PspSetCreateProcessNotifyRoutine in the function assembly
-	for (INT i = 0; i < 500; ++i)
+	UINT64 callbackRoutineAddr = 0;
+	UINT64 psp_callbackRoutineAddr = 0;
+	UINT64 callbackRoutineArrayAddr = 0;
+
+	if (type == CreateProcessNotifyRoutine || type == CreateThreadNotifyRoutine)
 	{
-		if ((*(BYTE*)(processCreateNotifyRoutineAddr + i) == ASM_CALL_NEAR)
-			|| (*(BYTE*)(processCreateNotifyRoutineAddr + i) == ASM_JMP_NEAR))
+		// Resolve PsSetCreateXYZNotifyRoutine
+		callbackRoutineAddr = (DWORD64)MmGetSystemRoutineAddress(&callbackRoutineName);
+
+		if (!callbackRoutineAddr)
 		{
-			// param for CALL is offset to our routine
-			LOG_MSG("Offset: 0x%lx", *(PUINT32*)(processCreateNotifyRoutineAddr + i + 1));
-			UINT32 offset = *(PUINT32)(processCreateNotifyRoutineAddr + i + 1);
-			// add offset to addr of next instruction to get psp address
-			psp_processCreateNotifyRoutineAddr = processCreateNotifyRoutineAddr + i + offset + 5;
-			break;
+			LOG_MSG("Failed to resolve set-notify routine");
+			return 0;
 		}
-	}
 
-	if (!psp_processCreateNotifyRoutineAddr)
-	{
-		LOG_MSG("Failed to resolve Psp(!)SetCreateProcessNotifyRoutine");
-		return 0;
-	}
-
-	LOG_MSG("PspSetCreateProcessNotifyRoutine: 0x%llx", psp_processCreateNotifyRoutineAddr);
-
-	// Now we resolve the array of callbacks
-	// we look for LEA r13 or LEA rcx <addr of callbackArray>
-	for (INT i = 0; i < 500; ++i)
-	{
-		if ((*(BYTE*)(psp_processCreateNotifyRoutineAddr + i) == ASM_LEA_R13_BYTE1 && *(BYTE*)(psp_processCreateNotifyRoutineAddr + i + 1) == ASM_LEA_R13_BYTE2)
-			|| (*(BYTE*)(psp_processCreateNotifyRoutineAddr + i) == ASM_LEA_RCX_BYTE1 && *(BYTE*)(psp_processCreateNotifyRoutineAddr + i + 1) == ASM_LEA_RCX_BYTE2))
+		// Now resolve PspSetCreateXYZNotifyRoutine
+		// we look for CALL/JMP PspSetCreateXYZNotifyRoutine in the function assembly
+		for (INT i = 0; i < 500; ++i)
 		{
-			// param for LEA is the address of the callback array
-			UINT32 offset = *(PUINT32)(psp_processCreateNotifyRoutineAddr + i + 3);
-			// add ofset to next instruction to get callback array addr
-			processCreateNotifyRoutineArrayAddr = psp_processCreateNotifyRoutineAddr + i + offset + 7;
-			break;
+			if ((*(BYTE*)(callbackRoutineAddr + i) == ASM_CALL_NEAR)
+				|| (*(BYTE*)(callbackRoutineAddr + i) == ASM_JMP_NEAR))
+			{
+				// param for CALL is offset to our routine
+				LOG_MSG("Offset: 0x%lx", *(PUINT32*)(callbackRoutineAddr + i + 1));
+				UINT32 offset = *(PUINT32)(callbackRoutineAddr + i + 1);
+				// add offset to addr of next instruction to get psp address
+				psp_callbackRoutineAddr = callbackRoutineAddr + i + offset + 5;
+				break;
+			}
 		}
-	}
 
-	if (!psp_processCreateNotifyRoutineAddr)
-	{
-		LOG_MSG("Failed to resolve Array for CreateProcess Callbacks");
-		return 0;
-	}
+		if (!psp_callbackRoutineAddr)
+		{
+			LOG_MSG("Failed to resolve private setnotify routine");
+			return 0;
+		}
 
-	return processCreateNotifyRoutineArrayAddr;
+		LOG_MSG("Private (psp) NotifyRoutine: 0x%llx", psp_callbackRoutineAddr);
+
+		// Now we resolve the array of callbacks
+		// we look for LEA r13 or LEA rcx <addr of callbackArray>
+		for (INT i = 0; i < 500; ++i)
+		{
+			if ((*(BYTE*)(psp_callbackRoutineAddr + i) == ASM_LEA_R13_BYTE1 && *(BYTE*)(psp_callbackRoutineAddr + i + 1) == ASM_LEA_R13_BYTE2)
+				|| (*(BYTE*)(psp_callbackRoutineAddr + i) == ASM_LEA_RCX_BYTE1 && *(BYTE*)(psp_callbackRoutineAddr + i + 1) == ASM_LEA_RCX_BYTE2))
+			{
+				// param for LEA is the address of the callback array
+				UINT32 offset = *(PUINT32)(psp_callbackRoutineAddr + i + 3);
+				// add ofset to next instruction to get callback array addr
+				callbackRoutineArrayAddr = psp_callbackRoutineAddr + i + offset + 7;
+				break;
+			}
+		}
+
+		if (!psp_callbackRoutineAddr)
+		{
+			LOG_MSG("Failed to resolve Array for callbacks");
+			return 0;
+		}
+
+		return callbackRoutineArrayAddr;
+	}
 }
 
-typedef struct _ProcessCreateCallback {
+typedef struct _KernelCallback {
 	PWCHAR driverName;
 	UINT64 driverBase;
 	UINT64 offset;
-} ProcessCreateCallback;
+} KernelCallback;
 
 /**
- * Enumerates kernel callbacks set with `PsSetCreateProcessNotifyRoutine`
+ * Enumerates kernel callbacks set 
  * 
- * @returns ktd::vector<ProcessCreateCallback, PagedPool> Vector of callbacks
+ * @param type Type of callback to resolve
+ * @returns ktd::vector<KernelCallback, PagedPool> Vector of callbacks
  */
-ktd::vector<ProcessCreateCallback, PagedPool>
-BeEnumerateKernelCallbacks_ProcessCreate()
+ktd::vector<KernelCallback, PagedPool>
+BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 {
-	auto data = ktd::vector<ProcessCreateCallback, PagedPool>();
+	auto data = ktd::vector<KernelCallback, PagedPool>();
 
-	// get address for the processcreate kernel callback array
-	UINT64 arrayAddr = BeGetKernelCallbackArrayAddr_ProcessCreate();
+	// get address for the kernel callback array
+	UINT64 arrayAddr = BeGetKernelCallbackArrayAddr(type);
 	if (!arrayAddr)
 	{
-		LOG_MSG("Failed to get array addr for kernel callbacks for processcreate");
+		LOG_MSG("Failed to get array addr for kernel callbacks");
 		return data;
 	}
-	LOG_MSG("Array for CreateProcess Callbacks: 0x%llx", arrayAddr);
+	LOG_MSG("Array for callbacks: 0x%llx", arrayAddr);
 
 	for (INT i = 0; i < 32 /* TOOD find out max number of callbacks */; ++i)
 	{
@@ -168,7 +188,7 @@ BeEnumerateKernelCallbacks_ProcessCreate()
 		LOG_MSG("Callback: %ls, 0x%llx + 0x%llx", driver->BaseDllName.Buffer, (UINT64)driver->DllBase, offset);
 
 		// add to result data
-		ProcessCreateCallback pcc = {
+		KernelCallback pcc = {
 			driver->BaseDllName.Buffer,
 			(UINT64)driver->DllBase,
 			offset

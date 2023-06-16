@@ -136,17 +136,38 @@ main(INT argc, CHAR *argv[])
         }
         else if (choice == "callbacks")
         {
-            auto callbackData = std::vector<CALLBACK_DATA>();
-            status = banshee.IoCtlEnumerateCallbacks(callbackData);
+            // Process callbacks
+            auto processCallbackData = std::vector<CALLBACK_DATA>();
+            status = banshee.IoCtlEnumerateCallbacks(CreateProcessNotifyRoutine, processCallbackData);
             if (status != BE_SUCCESS)
             {
-                LogError("Banshee Error: " + std::to_string((INT)status));
+                LogError("Banshee Error when enumerating process creation callbacks: " + std::to_string((INT)status));
                 continue;
             }
-            LogInfo("Enumerating process creation callbacks");
-            for (auto e : callbackData)
+            else
             {
-                printf(":: 0x%llx+0x%llx (%ws)\n", e.driverBase, e.offset, e.driverName);
+                LogInfo("Enumerating process creation callbacks");
+                for (auto e : processCallbackData)
+                {
+                    printf(":: 0x%llx+0x%llx (%ws)\n", e.driverBase, e.offset, e.driverName);
+                }
+            }
+            
+            // Thread callbacks
+            auto threadCallbackData = std::vector<CALLBACK_DATA>();
+            status = banshee.IoCtlEnumerateCallbacks(CreateThreadNotifyRoutine, threadCallbackData);
+            if (status != BE_SUCCESS)
+            {
+                LogError("Banshee Error when enumerating thread creation callbacks: " + std::to_string((INT)status));
+                continue;
+            }
+            else
+            {
+                LogInfo("Enumerating thread creation callbacks");
+                for (auto e : threadCallbackData)
+                {
+                    printf(":: 0x%llx+0x%llx (%ws)\n", e.driverBase, e.offset, e.driverName);
+                }
             }
         }
         else
