@@ -7,7 +7,6 @@
 #include <locale>
 
 #define MAX_BURY_ARG_LENGTH 256
-#define MAX_NUMBER_OF_KERNEL_CALLBACKS 256
 
 // --------------------------------------------------------------------------------------------------------
 // IOCTLs 
@@ -355,8 +354,8 @@ public:
     IoCtlEnumerateCallbacks(const CALLBACK_TYPE& type, std::vector<CALLBACK_DATA>& dataOut)
     {
         DWORD dwBytesReturned = 0;
-        auto outBuf = new CALLBACK_DATA[MAX_NUMBER_OF_KERNEL_CALLBACKS]; 
-        RtlSecureZeroMemory(outBuf, sizeof(CALLBACK_DATA) * MAX_NUMBER_OF_KERNEL_CALLBACKS);
+        auto outBuf = new CALLBACK_DATA[16]; // TODO: max number of kernel callbacks
+        RtlSecureZeroMemory(outBuf, sizeof(CALLBACK_DATA) * 16);
 #
         ULONG IOCTL;
         switch (type) 
@@ -375,8 +374,8 @@ public:
         BOOL success = DeviceIoControl(
             this->hDevice,
             IOCTL,
-            (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 64, // TODO: max amount of callbacks as constant
-            (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 64,
+            (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 16, // TODO: max amount of callbacks as constant
+            (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 16,
             &dwBytesReturned, NULL
         );
 

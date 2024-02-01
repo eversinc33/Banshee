@@ -6,8 +6,6 @@
 #include "Misc.hpp"
 #include "WinTypes.hpp"
 
-#define MAX_NUMBER_OF_KERNEL_CALLBACKS 256
-
 /**
  * Enumerates loaded drivers by parsing the driver section inloadorder linked list
  */
@@ -169,7 +167,7 @@ BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 	}
 	LOG_MSG("Array for callbacks: 0x%llx", arrayAddr);
 
-	for (INT i = 0; i < MAX_NUMBER_OF_KERNEL_CALLBACKS; ++i)
+	for (INT i = 0; i < 16; ++i) // TODO: max number
 	{
 		// get current address & align the addresses to 0x10 (https://medium.com/@yardenshafir2/windbg-the-fun-way-part-2-7a904cba5435)
 		PVOID currCallbackBlockAddr = (PVOID)(((UINT64*)arrayAddr)[i] & 0xFFFFFFFFFFFFFFF0);
