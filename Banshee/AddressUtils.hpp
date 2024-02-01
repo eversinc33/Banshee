@@ -2,6 +2,7 @@
 
 #include <ntifs.h>
 #include <wdf.h>
+#include "Globals.hpp"
 #include "Misc.hpp"
 #include "WinTypes.hpp"
 
@@ -91,9 +92,9 @@ BeGetProcessLinkedListOffset()
  * @returns PVOID address of ntoskrnl.exe
  */
 PVOID
-BeGetKernelBaseAddr(IN PDRIVER_OBJECT DriverObject)
+BeGetKernelBaseAddr()
 {
-    PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)DriverObject->DriverSection;
+    PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::driverObject)->DriverSection;
     PKLDR_DATA_TABLE_ENTRY first = entry;
 
     while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
@@ -117,7 +118,41 @@ UINT16
 BeGetEprocessProcessProtectionOffset()
 {
     UNICODE_STRING psIsPpl = RTL_CONSTANT_STRING(L"PsIsProtectedProcessLight");
-    return (UINT16)(*((PUINT16)MmGetSystemRoutineAddress(&psIsPpl) + 0x1));
+    return (UINT16)(*((PUINT16)MmGetSystemRoutineAddress(&psIsPpl) + 0x1)); // TODO: use own implementation instead
 }
 
-// TODO: implement MmGetSystemRoutineAddress à la HellsGate with ntoskrnl.exe
+
+/*
+ * Gets the address of a function from ntoskrnl.exe by parsing its EAT
+ *
+ * @returns PVOID Address of the function, NULL if not resolved
+ */
+PVOID
+BeGetSystemRoutineAddress(IN CHAR* functionToResolve)
+{
+    // Get address of ntoskrnl module
+    auto ntoskrnl = BeGlobals::NtOsKrnlAddr;
+
+    // Parse headers and export directory
+    PFULL_IMAGE_NT_HEADERS ntHeader = (PFULL_IMAGE_NT_HEADERS)((ULONG_PTR)ntoskrnl + ((PIMAGE_DOS_HEADER)ntoskrnl)->e_lfanew);
+    PIMAGE_EXPORT_DIRECTORY exportDir = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)ntoskrnl + ntHeader->OptionalHeader.DataDirectory[0].VirtualAddress);
+
+    PULONG addrOfNames = (PULONG)((ULONG_PTR)ntoskrnl + exportDir->AddressOfNames);
+    PULONG addrOfFuncs = (PULONG)((ULONG_PTR)ntoskrnl + exportDir->AddressOfFunctions);
+    PUSHORT addrOfOrdinals = (PUSHORT)((ULONG_PTR)ntoskrnl + exportDir->AddressOfNameOrdinals);
+
+    // Look through export directory until function is found and return its address
+    for (unsigned int i = 0; i < exportDir->NumberOfNames; ++i)
+    {
+        CHAR* currentFunctionName = (CHAR*)((ULONG_PTR)ntoskrnl + (ULONG_PTR)addrOfNames[i]);
+
+        if (strcmp(currentFunctionName, functionToResolve) == 0)
+        {
+            LOG_MSG("Found: %s\n", (ULONG_PTR)ntoskrnl + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
+            return (PVOID)((ULONG_PTR)ntoskrnl + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
+        }
+    }
+
+    // Else return null
+    return NULL;
+}

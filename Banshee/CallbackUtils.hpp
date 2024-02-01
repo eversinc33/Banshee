@@ -4,6 +4,8 @@
 #include "Vector.hpp"
 #include "WinTypes.hpp"
 
+#define MAX_NUMBER_OF_KERNEL_CALLBACKS 256
+
 /**
  * Enumerates loaded drivers by parsing the driver section inloadorder linked list
  */
@@ -81,7 +83,7 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 
 	if (type == CreateProcessNotifyRoutine || type == CreateThreadNotifyRoutine)
 	{
-		// Resolve PsSetCreateXYZNotifyRoutine
+		// Resolve PsSetCreateXYZNotifyRoutine TODO: use own implementation here
 		callbackRoutineAddr = (DWORD64)MmGetSystemRoutineAddress(&callbackRoutineName);
 
 		if (!callbackRoutineAddr)
@@ -165,7 +167,7 @@ BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 	}
 	LOG_MSG("Array for callbacks: 0x%llx", arrayAddr);
 
-	for (INT i = 0; i < 32 /* TOOD find out max number of callbacks */; ++i)
+	for (INT i = 0; i < MAX_NUMBER_OF_KERNEL_CALLBACKS; ++i)
 	{
 		// get current address & align the addresses to 0x10 (https://medium.com/@yardenshafir2/windbg-the-fun-way-part-2-7a904cba5435)
 		PVOID currCallbackBlockAddr = (PVOID)(((UINT64*)arrayAddr)[i] & 0xFFFFFFFFFFFFFFF0);

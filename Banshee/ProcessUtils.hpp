@@ -12,12 +12,13 @@
  * @returns PEPROCESS pointer to the EPROCESS object or NULL if not existing
  */
 PEPROCESS
-BeGetEprocessByPid(ULONG pid)
+BeGetEprocessByPid(IN ULONG pid)
 {
     PEPROCESS process;
     if (PsLookupProcessByProcessId(ULongToHandle(pid), &process) != 0)
     {
         LOG_MSG("PID %i not found \r\n", (ULONG)pid);
+        ObDereferenceObject(process);
         return NULL;
     }
     return process;

