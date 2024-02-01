@@ -1,7 +1,9 @@
 #pragma once
 
+#include <ntifs.h>
+#include <wdf.h>
 #include "Globals.hpp"
-#include "Vector.hpp"
+#include "Misc.hpp"
 #include "WinTypes.hpp"
 
 #define MAX_NUMBER_OF_KERNEL_CALLBACKS 256

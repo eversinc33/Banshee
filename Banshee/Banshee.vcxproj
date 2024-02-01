@@ -128,6 +128,7 @@
     <ClCompile Include="Driver.cpp" />
     <ClInclude Include="AddressUtils.hpp" />
     <ClInclude Include="KernelCallbacks.hpp" />
+    <ClInclude Include="MemoryUtils.hpp" />
     <ClInclude Include="Vector.hpp" />
     <ClInclude Include="WinTypes.hpp" />
   </ItemGroup>
