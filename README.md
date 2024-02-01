@@ -108,6 +108,7 @@ For now, only Process- and Thread-Creation kernel callbacks are enumerated, by p
 * Backdoor authentication as described in the phrack article linked above
 * removing kernel callbacks
 * more kernel callbacks
+* remove threads from PspCidTable: https://www.unknowncheats.me/forum/anti-cheat-bypass/455676-remove-systemthread-pspcidtable.html
 
 ## Credits
 
