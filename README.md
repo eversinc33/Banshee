@@ -94,6 +94,10 @@ For now, only Process- and Thread-Creation kernel callbacks are enumerated, by p
 
 ![](./img/Callbacks.png)
 
+### Protect the driver file 
+
+By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any process from opening a handle to our driver file.
+
 ## TODO
 
 * Shellcode injection from kernel land
