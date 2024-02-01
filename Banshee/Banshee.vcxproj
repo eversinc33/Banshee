@@ -127,6 +127,7 @@
     <ClInclude Include="CallbackUtils.hpp" />
     <ClCompile Include="Driver.cpp" />
     <ClInclude Include="AddressUtils.hpp" />
+    <ClInclude Include="FileUtils.hpp" />
     <ClInclude Include="KernelCallbacks.hpp" />
     <ClInclude Include="MemoryUtils.hpp" />
     <ClInclude Include="Vector.hpp" />
