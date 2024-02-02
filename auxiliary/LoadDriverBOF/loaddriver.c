@@ -54,8 +54,8 @@ BOOL LoadDriver(LPCWSTR name, LPCWSTR description, LPCWSTR path)
 
 int go(char *args, int len) 
 {
-	BOOL res = NULL;
-	datap parser;
+    BOOL res = NULL;
+    datap parser;
     LPCSTR name = L"";
     LPCSTR description = L"";
     LPCSTR path = L"";
@@ -65,13 +65,11 @@ int go(char *args, int len)
     description = BeaconDataExtract(&parser, NULL);
     path = BeaconDataExtract(&parser, NULL);
 
-	res = LoadDriver(name, description, path);
-	if(!res) 
+    res = LoadDriver(name, description, path);
+    if(!res) 
     {
-		return 1;
-	}
-	
-	return 0;
+        return 1;
+    }
+    
+    return 0;
 }
-
-
