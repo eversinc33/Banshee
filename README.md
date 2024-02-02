@@ -6,7 +6,7 @@
 
 Learning about Windows rootkits lately, so here is my own implementation of some techniques. For an overview, see **Features** below.
 
-This is not ready to use as the code is bad and I am just learning about kernel driver development, so this is for educational purposes mainly.
+I am just learning about kernel driver development, so this is for educational purposes mainly.
 
 ## What is a Rootkit?
 
@@ -27,7 +27,49 @@ banshee.IoCtlKillProcess(targetPid); // instruct banshee to kill the targetproce
 
 An example implementation of all the features in a command line client is found in [./BansheeClient/BansheeClient.cpp](./BansheeClient/BansheeClient.cpp).
 
-![](./img/CLI.png)
+#### BOF loading and Havoc Plugin
+
+A beacon object file (BOF) for loading the driver is supplied in `auxiliary/LoadDriverBOF` as well as a Plugin for [https://github.com/HavocFramework/Havoc](Havoc) to deploy Banshee to a Demon's host.
+
+## Features
+
+*Get in everyone, we're going to Kernel Land!*
+
+#### Kill processes
+
+`ZwTerminateProcess` is simply called from kernel land to terminate any process. Additionally, you can bury a process to avoid it to restart by setting a kernel callback to process creation: If the target process is created, Banshee will set the `CreationStatus` of the target process to `STATUS_ACCESS_DENIED`.
+
+E.g. to block defender, run `bury` with `msmpeng`, then `kill <defender pid>` and it won't come back anymore, since all process creation events with `msmpeng` in the image full path will be blocked.
+
+#### Change protection levels
+
+This is done by modifying the `EPROCESS` structure, which is an kernel object that describes a processes attributes. It also holds a value that specifies the protection level of the process. 
+
+We can directly modify this value (aka Direct Kernel Object Modification or DKOM), since we are operating in Ring 0.
+
+#### Elevate any process token to SYSTEM
+
+`EPROCESS` also holds a pointer to the current access token, so we can just make it point to e.g. the token of process 4 (`SYSTEM`) to elevate any process to `SYSTEM`.
+
+#### Enumerating kernel callbacks
+
+For now, only Process- and Thread-Creation kernel callbacks are enumerated, by parsing the `PsSetCreateNotifyProcess/ThreadRoutine` routine to reach the private `Psp*` routine and then parsing the address of the array, where kernel callbacks are stored.
+
+![](./img/Callbacks.png)
+
+### Protecting the driver file 
+
+By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any process from opening a handle to our driver file.
+
+## Patchguard triggering features
+
+These should only be used with a patchguard bypass or in a lab environment as they trigger BSOD.
+
+#### Hide Process by PID
+
+Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly linked list called `ActiveProcessLink` which is queried by Windows to enumerate running processes. If we simply unlink an entry here, we can hide our process from tools like Process Monitor or Task Manager.
+
+* This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory.
 
 ## Testing & debugging the driver
 
@@ -48,57 +90,7 @@ Afterwards you can run the client, after compiling the solution, with e.g.:
 
 Run this in a VM and create a snapshot. You will probably Bluescreen a lot when developing and can corrupt your system. Be warned.
 
-## Features
-
-*Get in everyone, we're going to Kernel Land!*
-
-### Kill any process by PID
-
-`ZwTerminateProcess` is simply called from kernel land to terminate any process.
-
-### "Bury" a Process
-
-Terminating processes, but they come back alive? Bury a process to avoid it to restart by setting a kernel callback to process creation.
-
-If the target process is created, Banshee will set the `CreationStatus` of the target process to `STATUS_ACCESS_DENIED`.
-
-The match is case insensitive on a substring - e.g. to block defender, run `bury` with `defender`, then `kill <defender pid>` and it won't come back anymore, since all process creation events with `defender` in the image full path will be blocked.
-
-For this feature, `INTEGRITYCHECK` has to be specified when linking (https://learn.microsoft.com/en-us/cpp/build/reference/integritycheck-require-signature-check?view=msvc-170).
-
-### Change protection level of any process by PID 
-
-This is done by modifying the `EPROCESS` structur, which is an kernel object that describes a processes attributes. It also holds a value that specifies the protection level of the process. 
-
-On my machine, that value can be found at offset `0x87a`. Since that offset is dynamic, we can dynamically parse it from `PspIsProtectedProcessLight` instead of hardcoding it (thanks [@never_unsealed](https://twitter.com/never_unsealed) for the trick):
- 
-![](./img/EPROCESS_Protection.png)
-
-We can directly modify this value (aka Direct Kernel Object Modification or DKOM), since we are operating in Ring 0.
-
-The values for the different protection levels can be found e.g. in Windows Internals Part 1 (page 115 in the 7th edition (english)).
-
-### Elevate any process token to SYSTEM
-
-`EPROCESS` also holds a pointer to the current access token, so we can just make it point to e.g. the token of process 4 (`SYSTEM`) to elevate any process to `SYSTEM`.
-
-### Hide Process by PID
-
-Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly linked list called `ActiveProcessLink` which is queried by Windows to enumerate running processes. If we simply unlink an entry here, we can hide our process from tools like Process Monitor or Task Manager.
-
-* This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory.
-
-### Enumerating kernel callbacks
-
-For now, only Process- and Thread-Creation kernel callbacks are enumerated, by parsing the `PsSetCreateNotifyProcess/ThreadRoutine` routine to reach the private `Psp*` routine and then parsing the address of the array, where kernel callbacks are stored. This is WIP code.
-
-![](./img/Callbacks.png)
-
-### Protect the driver file 
-
-By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any process from opening a handle to our driver file.
-
-## TODO
+## TODO 
 
 * Shellcode injection from kernel land
 * ETW provider disabling à la https://securityintelligence.com/posts/direct-kernel-object-manipulation-attacks-etw-providers/
@@ -111,12 +103,13 @@ By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any proce
 * Hiding only on special ocassion, e.g. on opening of task manager, to avoid patchguard crashes
 * Backdoor authentication as described in the phrack article linked above
 * removing kernel callbacks
-* more kernel callbacks
+* enumerating more kernel callbacks
 * remove threads from PspCidTable: https://www.unknowncheats.me/forum/anti-cheat-bypass/455676-remove-systemthread-pspcidtable.html
 
 ## Credits
 
-* Some offset code from: https://github.com/Idov31/Nidhogg 
+* Some offset code from and feature inspiration (please check out, great project): https://github.com/Idov31/Nidhogg
 * Great introduction to drivers: https://www.codeproject.com/articles/9504/driver-development-part-1-introduction-to-drivers
 * Great overview of techniques: https://www.cyberark.com/resources/threat-research-blog/fantastic-rootkits-and-where-to-find-them-part-1
 * WinDbg and the Windows Internals book for helping me (kinda) understand what I am doing here lol
+* Windows Kernel Programming by Pavel Yosifovich. Great book that I should have read before starting this
