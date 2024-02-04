@@ -11,7 +11,7 @@
 // Features
 
 // Deny file system  access to the banshee.sys file by hooking NTFS
-#define DENY_DRIVER_FILE_ACCESS TRUE
+#define DENY_DRIVER_FILE_ACCESS FALSE
 
 // --------------------------------------------------------------------------------------------------------
 

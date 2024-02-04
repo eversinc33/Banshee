@@ -62,15 +62,15 @@ UINT64
 BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 {
 	BeEnumerateDrivers();
-	UNICODE_STRING callbackRoutineName;
+	CHAR* callbackRoutineName;
 
 	switch (type)
 	{
 	case CreateProcessNotifyRoutine:
-		callbackRoutineName = RTL_CONSTANT_STRING(L"PsSetCreateProcessNotifyRoutine");
+		callbackRoutineName = "PsSetCreateProcessNotifyRoutine";
 		break;
 	case CreateThreadNotifyRoutine:
-		callbackRoutineName = RTL_CONSTANT_STRING(L"PsSetCreateThreadNotifyRoutine");
+		callbackRoutineName = "PsSetCreateThreadNotifyRoutine";
 		break;
 	default:
 		LOG_MSG("Unsupported callback type");
@@ -83,8 +83,8 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 
 	if (type == CreateProcessNotifyRoutine || type == CreateThreadNotifyRoutine)
 	{
-		// Resolve PsSetCreateXYZNotifyRoutine TODO: use own implementation here
-		callbackRoutineAddr = (DWORD64)MmGetSystemRoutineAddress(&callbackRoutineName);
+		// Resolve PsSetCreateXYZNotifyRoutine 
+		callbackRoutineAddr = (DWORD64)BeGetSystemRoutineAddress(callbackRoutineName);
 
 		if (!callbackRoutineAddr)
 		{
@@ -206,4 +206,30 @@ BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 	}
 
 	return data;
+}
+
+/**
+ * Empty callback routine to be used for replacing other kernel callback routines
+ */
+VOID
+BeEmptyCreateProcessNotifyRoutine(
+	IN HANDLE ParentId,
+	IN HANDLE ProcessId,
+	IN BOOLEAN Create
+)
+{
+	LOG_MSG("Empty CreateProcessNotifyRoutine called\n");
+}
+
+/**
+ * Empty callback routine to be used for replacing other kernel callback routines
+ */
+VOID
+BeEmptyCreateThreadNotifyRoutine(
+	IN HANDLE ProcessId,
+	IN HANDLE ThreadId,
+	IN BOOLEAN Create
+)
+{
+	LOG_MSG("Empty CreateThreadNotifyRoutine called\n");
 }
