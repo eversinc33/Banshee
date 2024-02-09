@@ -119,6 +119,7 @@ BeHookNTFSFileCreate()
 
     // Get the MJ_CREATE function of the ntfs driver and save it to the global variable
     // Also put our function as the IRP_MJ_CREATE handler instead
+    // No lock needed, since we use the atomic InterlockedExchange function
     BeGlobals::originalNTFS_IRP_MJ_CREATE_function = (NTFS_IRP_MJ_CREATE_FUNCTION)InterlockedExchange64((LONG64*)&ntfsDriverObject->MajorFunction[IRP_MJ_CREATE], (LONG64)BeHooked_NTFS_IRP_MJ_CREATE);
 
 	ObDereferenceObject(ntfsDriverObject);

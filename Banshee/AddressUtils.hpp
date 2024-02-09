@@ -109,20 +109,6 @@ BeGetKernelBaseAddr()
 }
 
 /*
- * Gets offset of EPROCESS ProcessProtection dynamically by parsing PsIsProtectedProcessLight.
- * Shoutout to @never_unsealed and @C5Pider for pointing this out to me.
- *
- * @returns ULONG Offset of EPROCESS ProcessProtection
- */
-UINT16
-BeGetEprocessProcessProtectionOffset()
-{
-    UNICODE_STRING psIsPpl = RTL_CONSTANT_STRING(L"PsIsProtectedProcessLight");
-    return (UINT16)(*((PUINT16)MmGetSystemRoutineAddress(&psIsPpl) + 0x1)); // TODO: use own implementation instead
-}
-
-
-/*
  * Gets the address of a function from ntoskrnl.exe by parsing its EAT
  *
  * @returns PVOID Address of the function, NULL if not resolved
@@ -155,4 +141,17 @@ BeGetSystemRoutineAddress(IN CHAR* functionToResolve)
 
     // Else return null
     return NULL;
+}
+
+/*
+ * Gets offset of EPROCESS ProcessProtection dynamically by parsing PsIsProtectedProcessLight.
+ * Shoutout to @never_unsealed and @C5Pider for pointing this out to me.
+ *
+ * @returns ULONG Offset of EPROCESS ProcessProtection
+ */
+UINT16
+BeGetEprocessProcessProtectionOffset()
+{
+    CHAR* psIsPpl = "PsIsProtectedProcessLight";
+    return (UINT16)(*((PUINT16)BeGetSystemRoutineAddress(psIsPpl) + 0x1));
 }

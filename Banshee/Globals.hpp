@@ -11,6 +11,7 @@ namespace BeGlobals
 }
 
 #include "AddressUtils.hpp"
+#include "AutoLock.hpp"
 
 #define MAX_BURIED_PROCESSES 256
 
@@ -32,7 +33,10 @@ typedef NTSTATUS(*OBREFERENCEOBJECTBYNAME)(PUNICODE_STRING ObjectName, ULONG Att
 namespace BeGlobals
 {
     WCHAR_ARRAY beBuryTargetProcesses = { { NULL }, 0 };
-    FAST_MUTEX beBuryMutex;
+
+    // Mutexes
+    FastMutex buryLock = FastMutex();
+    FastMutex processListLock = FastMutex();
 
     NTFS_IRP_MJ_CREATE_FUNCTION originalNTFS_IRP_MJ_CREATE_function = NULL;
 
@@ -46,11 +50,7 @@ namespace BeGlobals
     NTSTATUS
     BeInitGlobals(PDRIVER_OBJECT DriverObject)
     {
-        // globals
         driverObject = DriverObject;
-
-        // Init mutexes
-        ExInitializeFastMutex(&beBuryMutex);
 
         // Get base address of ntoskrnl module
         NtOsKrnlAddr = BeGetKernelBaseAddr();
