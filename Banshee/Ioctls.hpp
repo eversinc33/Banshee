@@ -136,6 +136,7 @@ BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             {
                 status = BeIoctlEnumerateCallbacks(CreateThreadNotifyRoutine, Irp, pIoStackIrp, &dwDataWritten);
             }
+            break;
 
         case BE_IOCTL_ERASE_CALLBACKS:
             { 
@@ -143,7 +144,7 @@ BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 ULONG stringSize = pIoStackIrp->Parameters.DeviceIoControl.InputBufferLength;
                 status = BeIoctlEraseCallbacks(targetDriver, stringSize);
             }
-        break;
+            break;
         }
     }
 

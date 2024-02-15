@@ -27,9 +27,11 @@ banshee.IoCtlKillProcess(targetPid); // instruct banshee to kill the targetproce
 
 An example implementation of all the features in a command line client is found in [./BansheeClient/BansheeClient.cpp](./BansheeClient/BansheeClient.cpp).
 
-#### BOF loading and Havoc Plugin
+#### BOF loading
 
-A beacon object file (BOF) for loading the driver is supplied in `auxiliary/LoadDriverBOF` as well as a Plugin for [https://github.com/HavocFramework/Havoc](Havoc) to deploy Banshee to a Demon's host.
+A beacon object file (BOF) for loading the driver is supplied in `auxiliary/LoadDriverBOF`.
+
+A BOF for calling the different functions will follow.
 
 ## Features
 
