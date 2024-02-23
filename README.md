@@ -85,10 +85,10 @@ bcdedit /debug on
 Afterwards you can run the client, after compiling the solution, with e.g.:
 
 ```cmd
-.\x64\Debug\BansheeClient.exe C:\Users\eversinc33\source\repos\Banshee\x64\Debug\Banshee.sys
+.\x64\Debug\BansheeClient.exe .\x64\Debug\Banshee.sys
 ```
 
-Run this in a VM and create a snapshot. You will probably Bluescreen a lot when developing and can corrupt your system. Be warned.
+Run this in a VM, debug this VM with WinDbg and create a snapshot before. You will probably Bluescreen a lot when developing.
 
 ## TODO 
 
