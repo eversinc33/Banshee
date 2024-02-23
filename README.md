@@ -103,6 +103,7 @@ Run this in a VM and create a snapshot. You will probably Bluescreen a lot when 
 * enumerating more kernel callbacks
 * remove threads from PspCidTable: https://www.unknowncheats.me/forum/anti-cheat-bypass/455676-remove-systemthread-pspcidtable.html
 * clean up code... neverending story
+** Add a function for signature lookups with masks
 
 ## Credits
 
