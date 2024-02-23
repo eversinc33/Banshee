@@ -6,7 +6,32 @@
 #include "Globals.hpp"
 #include "Misc.hpp"
 #include "WinTypes.hpp"
+#include <intrin.h>
 
+// Disable write protection by setting cr0
+KIRQL 
+WPOFFx64()
+{
+	KIRQL irql = KeRaiseIrqlToDpcLevel();
+	UINT64 cr0 = __readcr0();
+	cr0 &= 0xfffffffffffeffff;
+	__writecr0(cr0);
+	_disable();
+	return irql;
+}
+
+// Enable write protection by setting cr0
+VOID 
+WPONx64(KIRQL irql)
+{
+	UINT64 cr0 = __readcr0();
+	cr0 |= 0x10000;
+	_enable();
+	__writecr0(cr0);
+	KeLowerIrql(irql);
+}
+
+/*
 /**
  * Wrapper for MmCopyVirtualMemory, adjusting permissions accordingly and restoring them
  *
@@ -17,7 +42,7 @@
  * @param accessMode    The access mode specifying whether the operation is in user mode or kernel mode
  *
  * @return              Returns NTSTATUS indicating success or failure
- */
+ 
 NTSTATUS
 BeReadProcessMemory(PEPROCESS targetProcess, PVOID procAddr, OUT PVOID dstAddr, SIZE_T size, MODE accessMode)
 {
@@ -41,7 +66,7 @@ BeReadProcessMemory(PEPROCESS targetProcess, PVOID procAddr, OUT PVOID dstAddr, 
  * @param accessMode    The access mode specifying whether the operation is in user mode or kernel mode
  *
  * @return              Returns NTSTATUS indicating success or failure
- */
+ 
 NTSTATUS 
 BeWriteProcessMemory(PEPROCESS targetProcess, PVOID srcAddr, PVOID dstAddr, SIZE_T size, MODE accessMode)
 {
@@ -101,3 +126,4 @@ BeWriteProcessMemory(PEPROCESS targetProcess, PVOID srcAddr, PVOID dstAddr, SIZE
 
 	return STATUS_SUCCESS;
 }
+*/

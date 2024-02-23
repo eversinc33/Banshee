@@ -17,11 +17,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LoadDriverBOF", "LoadDriver
 		LoadDriverBOF\loaddriver.h = LoadDriverBOF\loaddriver.h
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HavocPlugin", "HavocPlugin", "{43D6A65F-AD6C-4478-8BAD-4571088CF6FA}"
-	ProjectSection(SolutionItems) = preProject
-		HavocPlugin\banshee.py = HavocPlugin\banshee.py
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -83,5 +78,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B9902B4D-85AD-40F9-8392-36E7210DE1CF}
 	EndGlobalSection
 EndGlobal

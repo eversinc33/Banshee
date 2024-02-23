@@ -6,18 +6,17 @@
 #include <iostream>
 #include <string.h>
 
+// cursed macro
+#define echo std::cout <<
+
 INT 
 main(INT argc, CHAR *argv[])
 {
-    std::cout << " ▄▀▀█▄▄  ▄▀▀█▄   ▄▀▀▄ ▀▄  ▄▀▀▀▀▄  ▄▀▀▄ ▄▄   ▄▀▀█▄▄▄▄  ▄▀▀█▄▄▄▄ " << std::endl;
-    std::cout << "▐ ▄▀  █ ▐ ▄▀ ▀▄ █  █ █ █ █ █   ▐ █  █   ▄▀ ▐  ▄▀   ▐ ▐  ▄▀   ▐ " << std::endl;
-    std::cout << " █▄▄▄▀    █▄▄▄█ ▐  █  ▀█    ▀▄   ▐  █▄▄▄█    █▄▄▄▄▄    █▄▄▄▄▄  " << std::endl;
-    std::cout << " █   █   ▄▀   █   █   █  ▀▄   █     █   █    █    ▌    █    ▌  " << std::endl;
-    std::cout << "▄▀▄▄▄▀  █   ▄▀  ▄▀   █    █▀▀▀     ▄▀  ▄▀   ▄▀▄▄▄▄    ▄▀▄▄▄▄   " << std::endl;
-    std::cout << "█    ▐   ▐   ▐   █    ▐    ▐       █   █     █    ▐    █    ▐  " << std::endl;
-    std::cout << "▐                ▐                 ▐   ▐     ▐         ▐       " << std::endl;
-    std::cout << "\n";
-    std::cout << "Banshee Rootkit v0.0.1\n                                       " << std::endl;
+    echo " ______   ______   ______   ______   _    _   ______  ______ \n";
+    echo "| |  | \\ | |  | | | |  \\ \\ / |      | |  | | | |     | |     \n";
+    echo "| |--| < | |__| | | |  | | '------. | |--| | | |---- | |---- \n";
+    echo "|_|__|_/ |_|  |_| |_|  |_|  ____|_/ |_|  |_| |_|____ |_|____ \n\n";
+    std::cout << "Banshee Rootkit v0.1\n" << std::endl;
 
     if (argc < 2)
     {

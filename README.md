@@ -53,11 +53,9 @@ We can directly modify this value (aka Direct Kernel Object Modification or DKOM
 
 `EPROCESS` also holds a pointer to the current access token, so we can just make it point to e.g. the token of process 4 (`SYSTEM`) to elevate any process to `SYSTEM`.
 
-#### Enumerating kernel callbacks
+#### Enumerating and erasing kernel callbacks
 
-For now, only Process- and Thread-Creation kernel callbacks are enumerated, by parsing the `PsSetCreateNotifyProcess/ThreadRoutine` routine to reach the private `Psp*` routine and then parsing the address of the array, where kernel callbacks are stored.
-
-![](./img/Callbacks.png)
+For now, only Process- and Thread-Creation kernel callbacks are enumerated, by parsing the `PsSetCreateNotifyProcess/ThreadRoutine` routine to reach the private `Psp*` routine and then parsing the address of the array, where kernel callbacks are stored. With `erase`, callbacks can be erased by overwriting the function pointer to point to an empty function in Banshee instead.
 
 #### Protecting the driver file 
 
@@ -71,7 +69,7 @@ These should only be used with a patchguard bypass or in a lab environment as th
 
 Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly linked list called `ActiveProcessLink` which is queried by Windows to enumerate running processes. If we simply unlink an entry here, we can hide our process from tools like Process Monitor or Task Manager.
 
-* This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory.
+* This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory. While the former can be fixed by not being so lazy when programming, the latter can not be as easily bypassed from within the driver.
 
 ## Testing & debugging the driver
 
@@ -104,6 +102,7 @@ Run this in a VM and create a snapshot. You will probably Bluescreen a lot when 
 * Backdoor authentication as described in the phrack article linked above
 * enumerating more kernel callbacks
 * remove threads from PspCidTable: https://www.unknowncheats.me/forum/anti-cheat-bypass/455676-remove-systemthread-pspcidtable.html
+* clean up code... neverending story
 
 ## Credits
 

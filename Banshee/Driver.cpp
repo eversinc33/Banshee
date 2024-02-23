@@ -26,9 +26,42 @@ BeUnload(PDRIVER_OBJECT DriverObject)
 {
     LOG_MSG("Unload Called \r\n");
 
+    // Restore kernel callbacks
+    {
+        {
+            AutoLock<FastMutex> _lock(BeGlobals::callbackLock);
+
+            LOG_MSG("Erased kernel callback amount: %i\n", BeGlobals::beCallbacksToRestore.length);
+            while (BeGlobals::beCallbacksToRestore.length >= 0)
+            {
+                auto callbackToRestore = BeGlobals::beCallbacksToRestore.callbackToRestore[BeGlobals::beCallbacksToRestore.length];
+                auto callbackAddr = BeGlobals::beCallbacksToRestore.addrOfCallbackFunction[BeGlobals::beCallbacksToRestore.length];
+                auto callbackType = BeGlobals::beCallbacksToRestore.callbackType[BeGlobals::beCallbacksToRestore.length];
+
+                LOG_MSG("Restoring kernel callback function -> callbackToRestore 0x%llx\n", callbackToRestore);
+
+                if (callbackToRestore != NULL)
+                {
+                    switch (callbackType)
+                    {
+                    case CreateProcessNotifyRoutine:
+                        InterlockedExchange64((LONG64*)callbackAddr, callbackToRestore);
+                        break;
+                    default:
+                        LOG_MSG("Invalid callback type\r\n");
+                        return STATUS_INVALID_PARAMETER;
+                        break;
+                    }
+                }
+                BeGlobals::beCallbacksToRestore.length--;
+            }
+        }
+    }
+
     // Remove our bury routine if we set one
     if(BeGlobals::beBuryTargetProcesses.length != 0)
     {
+        // TODO: resolve dynamically, also at other usages
         if (PsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE) == STATUS_SUCCESS)
         {
             LOG_MSG("Removed routine!\n");
@@ -37,9 +70,10 @@ BeUnload(PDRIVER_OBJECT DriverObject)
         {
             LOG_MSG("Failed to remove routine!\n");
         }
+
         // free global memory for bury process wstrs
-        { // LOCK
-            AutoLock<FastMutex> _lock(BeGlobals::buryLock); // wait for any currently running callbacks that access the array to finish
+        { 
+            AutoLock<FastMutex> _lock(BeGlobals::buryLock); 
             
             while (BeGlobals::beBuryTargetProcesses.length >= 0)
             {
@@ -50,7 +84,7 @@ BeUnload(PDRIVER_OBJECT DriverObject)
                 }
                 BeGlobals::beBuryTargetProcesses.length--;
             }
-        } // LOCK END
+        } 
     }
 
     // Unhook if NTFS was hooked
@@ -65,6 +99,8 @@ BeUnload(PDRIVER_OBJECT DriverObject)
             LOG_MSG("Failed to remove NTFS hook!\n");
         }
     }
+
+    LOG_MSG("Byebye!\n");
         
     IoDeleteSymbolicLink(&usDosDeviceName);
     IoDeleteDevice(DriverObject->DeviceObject);

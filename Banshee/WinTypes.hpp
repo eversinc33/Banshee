@@ -16,8 +16,9 @@ typedef USHORT WORD;
 typedef ULONG DWORD;
 
 enum CALLBACK_TYPE {
-    CreateProcessNotifyRoutine = 0,
-    CreateThreadNotifyRoutine = 1
+	CallbackTypeNone = 0,
+    CreateProcessNotifyRoutine = 1,
+    CreateThreadNotifyRoutine = 2
 };
 
 // --------------------------------------------------------------------------------------------------------

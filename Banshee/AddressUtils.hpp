@@ -134,7 +134,7 @@ BeGetSystemRoutineAddress(IN CHAR* functionToResolve)
 
         if (strcmp(currentFunctionName, functionToResolve) == 0)
         {
-            LOG_MSG("Found: %s\n", (ULONG_PTR)ntoskrnl + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
+            LOG_MSG("Found: 0x%llx\n", (ULONG_PTR)ntoskrnl + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
             return (PVOID)((ULONG_PTR)ntoskrnl + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
         }
     }
