@@ -55,6 +55,8 @@ BeGetDriverForAddress(UINT64 address)
 
 /**
  * Gets the address of the array where kernel callbacks are stored
+ * 1) Resolve the private Psp* routine from the Ps* routine by looking for CALL or JMP instructions
+ * 2) Resolve the array of callbacks from the Psp* routine by looking for LEA r13 or LEA rcx instructions
  * 
  * @param type Type of callback to resolve
  * @return UINT64 address of the callbackRoutine array
@@ -69,7 +71,6 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 	{
 	case CreateProcessNotifyRoutine:
 		callbackRoutineName = "PsSetCreateProcessNotifyRoutine"; 
-		// TODO: what about *Ex ?
 		break;
 	case CreateThreadNotifyRoutine:
 		callbackRoutineName = "PsSetCreateThreadNotifyRoutine";
@@ -86,7 +87,7 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 	if (type == CreateProcessNotifyRoutine || type == CreateThreadNotifyRoutine)
 	{
 		// Resolve PsSetCreateXYZNotifyRoutine 
-		callbackRoutineAddr = (DWORD64)BeGetSystemRoutineAddress(callbackRoutineName);
+		callbackRoutineAddr = (DWORD64)BeGetSystemRoutineAddress(NtOsKrnl, callbackRoutineName);
 
 		if (!callbackRoutineAddr)
 		{

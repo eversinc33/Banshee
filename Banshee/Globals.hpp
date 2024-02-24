@@ -5,10 +5,15 @@
 #include "WinTypes.hpp"
 #include "Vector.hpp"
 
+typedef NTSTATUS(*ZWQUERYSYSTEMINFORMATION)(IN SYSTEM_INFORMATION_CLASS SystemInformationClass, OUT PVOID SystemInformation, IN ULONG SystemInformationLength, OUT PULONG ReturnLength OPTIONAL);
+
 namespace BeGlobals
 {
     PVOID NtOsKrnlAddr;
+    PVOID Win32kBaseAddr;
     PDRIVER_OBJECT driverObject;
+
+    ZWQUERYSYSTEMINFORMATION pZwQuerySystemInformation;
 }
 
 #include "AddressUtils.hpp"
@@ -63,9 +68,11 @@ namespace BeGlobals
     {
         driverObject = DriverObject;
 
-        // Get base address of ntoskrnl module
-        NtOsKrnlAddr = BeGetKernelBaseAddr();
+        // Get base address of modules
+        NtOsKrnlAddr = BeGetBaseAddrOfModule(L"ntoskrnl.exe");
+        Win32kBaseAddr = BeGetBaseAddrOfModule(L"win32kbase.sys");
         LOG_MSG("ntoskrnl.exe base addr:0x%llx\n", (UINT64)NtOsKrnlAddr);
+        LOG_MSG("Win32kbase.sys base addr:0x%llx\n", (UINT64)Win32kBaseAddr);
 
         // init locks
         buryLock.Init();
@@ -73,13 +80,14 @@ namespace BeGlobals
         callbackLock.Init();
 
         // Function resolving
-        pZwTerminateProcess = (ZWTERMINATEPROCESS)BeGetSystemRoutineAddress("ZwTerminateProcess");
-        pZwOpenProcess = (ZWOPENPROCESS)BeGetSystemRoutineAddress("ZwOpenProcess");
-        pZwClose = (ZWCLOSE)BeGetSystemRoutineAddress("ZwClose");
-        pZwProtectVirtualMemory = (ZWPROTECTVIRTUALMEMORY)BeGetSystemRoutineAddress("ZwProtectVirtualMemory");
-        pMmCopyVirtualMemory = (MMCOPYVIRTUALMEMORY)BeGetSystemRoutineAddress("MmCopyVirtualMemory");
-        pObReferenceObjectByName = (OBREFERENCEOBJECTBYNAME)BeGetSystemRoutineAddress("ObReferenceObjectByName");
-        if (!pZwTerminateProcess || !pZwOpenProcess || !pZwClose || !pZwProtectVirtualMemory || !pMmCopyVirtualMemory || !pObReferenceObjectByName)
+        pZwTerminateProcess = (ZWTERMINATEPROCESS)BeGetSystemRoutineAddress(NtOsKrnl, "ZwTerminateProcess");
+        pZwOpenProcess = (ZWOPENPROCESS)BeGetSystemRoutineAddress(NtOsKrnl, "ZwOpenProcess");
+        pZwClose = (ZWCLOSE)BeGetSystemRoutineAddress(NtOsKrnl, "ZwClose");
+        pZwProtectVirtualMemory = (ZWPROTECTVIRTUALMEMORY)BeGetSystemRoutineAddress(NtOsKrnl, "ZwProtectVirtualMemory");
+        pMmCopyVirtualMemory = (MMCOPYVIRTUALMEMORY)BeGetSystemRoutineAddress(NtOsKrnl, "MmCopyVirtualMemory");
+        pObReferenceObjectByName = (OBREFERENCEOBJECTBYNAME)BeGetSystemRoutineAddress(NtOsKrnl, "ObReferenceObjectByName");
+        pZwQuerySystemInformation = (ZWQUERYSYSTEMINFORMATION)BeGetSystemRoutineAddress(NtOsKrnl, "ZwQuerySystemInformation");
+        if (!pZwTerminateProcess || !pZwOpenProcess || !pZwClose || !pZwProtectVirtualMemory || !pMmCopyVirtualMemory || !pObReferenceObjectByName || !pZwQuerySystemInformation)
         {
             LOG_MSG("Failed to resolve one or more functions\n");
             return STATUS_NOT_FOUND;

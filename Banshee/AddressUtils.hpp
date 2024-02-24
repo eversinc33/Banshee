@@ -1,10 +1,18 @@
-#pragma once
+﻿#pragma once
 
 #include <ntifs.h>
 #include <wdf.h>
 #include "Globals.hpp"
 #include "Misc.hpp"
 #include "WinTypes.hpp"
+#include "DriverMeta.hpp"
+#include "ProcessUtils.hpp"
+
+enum ModuleName 
+{
+    NtOsKrnl = 0,
+    Win32kBase = 1
+};
 
 /**
  * Get offset to the access token from the EPROCESS structure, depending on the OS version.
@@ -86,20 +94,20 @@ BeGetProcessLinkedListOffset()
 }
 
 /*
- * Get the base address of ntoskrnl.exe
+ * Get the base address of a module, such as ntoskrnl.exe
  * https://www.unknowncheats.me/forum/general-programming-and-reversing/427419-getkernelbase.html
  *
  * @returns PVOID address of ntoskrnl.exe
  */
 PVOID
-BeGetKernelBaseAddr()
+BeGetBaseAddrOfModule(WCHAR* moduleName)
 {
     PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::driverObject)->DriverSection;
     PKLDR_DATA_TABLE_ENTRY first = entry;
 
     while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
     {
-        if (_strcmpi_w(entry->BaseDllName.Buffer, L"ntoskrnl.exe") == 0)
+        if (_strcmpi_w(entry->BaseDllName.Buffer, moduleName) == 0)
         {
             return entry->DllBase;
         }
@@ -109,34 +117,84 @@ BeGetKernelBaseAddr()
 }
 
 /*
- * Gets the address of a function from ntoskrnl.exe by parsing its EAT
+ * Gets the address of a function from a module by parsing its EAT
  *
  * @returns PVOID Address of the function, NULL if not resolved
  */
 PVOID
-BeGetSystemRoutineAddress(IN CHAR* functionToResolve)
+BeGetSystemRoutineAddress(const IN ModuleName& moduleName, IN CHAR* functionToResolve)
 {
-    // Get address of ntoskrnl module
-    auto ntoskrnl = BeGlobals::NtOsKrnlAddr;
+    KAPC_STATE apc;
+    PVOID moduleBase = 0;
+    bool inWin32kModule = false;
+
+    switch (moduleName)
+    {
+    case NtOsKrnl:
+        moduleBase = BeGlobals::NtOsKrnlAddr;
+        break;
+    case Win32kBase:
+        moduleBase = BeGlobals::Win32kBaseAddr;
+        inWin32kModule = true;
+        break;
+    default:
+        LOG_MSG("ERROR: Invalid module\n");
+        return NULL;
+        break;
+    }
+
+    // To read session driver modules, we need to be attached to a process running in a user session // TODO refactor to dedicated function
+    // https://www.unknowncheats.me/forum/general-programming-and-reversing/492970-reading-memory-win32kbase-sys.html
+    if (inWin32kModule)
+    {
+        // Attach to winlogon
+        PEPROCESS targetProc = 0;
+        UNICODE_STRING processName;
+        RtlInitUnicodeString(&processName, L"winlogon.exe");
+
+        HANDLE procId = Get_pid_from_name(processName);
+        LOG_MSG("Found winlogon PID: %i\n", procId);
+
+        if ((PsLookupProcessByProcessId(procId, &targetProc) != 0)) 
+        {
+            ObDereferenceObject(targetProc);
+            return NULL;
+        }
+
+        KeStackAttachProcess(targetProc, &apc);
+    }
 
     // Parse headers and export directory
-    PFULL_IMAGE_NT_HEADERS ntHeader = (PFULL_IMAGE_NT_HEADERS)((ULONG_PTR)ntoskrnl + ((PIMAGE_DOS_HEADER)ntoskrnl)->e_lfanew);
-    PIMAGE_EXPORT_DIRECTORY exportDir = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)ntoskrnl + ntHeader->OptionalHeader.DataDirectory[0].VirtualAddress);
+    PFULL_IMAGE_NT_HEADERS ntHeader = (PFULL_IMAGE_NT_HEADERS)((ULONG_PTR)moduleBase + ((PIMAGE_DOS_HEADER)moduleBase)->e_lfanew);
+    PIMAGE_EXPORT_DIRECTORY exportDir = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)moduleBase + ntHeader->OptionalHeader.DataDirectory[0].VirtualAddress);
 
-    PULONG addrOfNames = (PULONG)((ULONG_PTR)ntoskrnl + exportDir->AddressOfNames);
-    PULONG addrOfFuncs = (PULONG)((ULONG_PTR)ntoskrnl + exportDir->AddressOfFunctions);
-    PUSHORT addrOfOrdinals = (PUSHORT)((ULONG_PTR)ntoskrnl + exportDir->AddressOfNameOrdinals);
+    PULONG addrOfNames = (PULONG)((ULONG_PTR)moduleBase + exportDir->AddressOfNames);
+    PULONG addrOfFuncs = (PULONG)((ULONG_PTR)moduleBase + exportDir->AddressOfFunctions);
+    PUSHORT addrOfOrdinals = (PUSHORT)((ULONG_PTR)moduleBase + exportDir->AddressOfNameOrdinals);
 
     // Look through export directory until function is found and return its address
     for (unsigned int i = 0; i < exportDir->NumberOfNames; ++i)
     {
-        CHAR* currentFunctionName = (CHAR*)((ULONG_PTR)ntoskrnl + (ULONG_PTR)addrOfNames[i]);
+        CHAR* currentFunctionName = (CHAR*)((ULONG_PTR)moduleBase + (ULONG_PTR)addrOfNames[i]);
 
         if (strcmp(currentFunctionName, functionToResolve) == 0)
         {
-            LOG_MSG("Found: 0x%llx\n", (ULONG_PTR)ntoskrnl + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
-            return (PVOID)((ULONG_PTR)ntoskrnl + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
+            PULONG addr = (PULONG)((ULONG_PTR)moduleBase + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
+
+            LOG_MSG("Found: 0x%llx\n", addr);
+
+            if (inWin32kModule)
+            {
+                KeUnstackDetachProcess(&apc);
+            }
+
+            return (PVOID)addr;
         }
+    }
+
+    if (inWin32kModule)
+    {
+        KeUnstackDetachProcess(&apc);
     }
 
     // Else return null
@@ -152,6 +210,5 @@ BeGetSystemRoutineAddress(IN CHAR* functionToResolve)
 UINT16
 BeGetEprocessProcessProtectionOffset()
 {
-    CHAR* psIsPpl = "PsIsProtectedProcessLight";
-    return (UINT16)(*((PUINT16)BeGetSystemRoutineAddress(psIsPpl) + 0x1));
+    return (UINT16)(*((PUINT16)BeGetSystemRoutineAddress(NtOsKrnl, "PsIsProtectedProcessLight") + 0x1));
 }

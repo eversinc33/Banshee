@@ -130,6 +130,7 @@
     <ClInclude Include="AddressUtils.hpp" />
     <ClInclude Include="FileUtils.hpp" />
     <ClInclude Include="KernelCallbacks.hpp" />
+    <ClInclude Include="Keylogger.hpp" />
     <ClInclude Include="MemoryUtils.hpp" />
     <ClInclude Include="Vector.hpp" />
     <ClInclude Include="WinTypes.hpp" />
