@@ -71,6 +71,10 @@ Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly li
 
 * This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory. While the former can be fixed by not being so lazy when programming, the latter can not be as easily bypassed from within the driver.
 
+#### Keylogging from the Kernel
+
+Using the undocumented `gafAsyncKeyState` function we can parse keystrokes from a session without using any API calls besides reading memory (https://www.unknowncheats.me/forum/c-and-c-/327461-kernel-mode-key-input.html).
+
 ## Testing & debugging the driver
 
 You need to enable testsigning to load the driver. I also recommend to enable debugging for the kernel.
