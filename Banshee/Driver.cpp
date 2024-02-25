@@ -175,6 +175,11 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
         &pDeviceObject
     );
 
+    if (pDeviceObject == NULL)
+    {
+        return NtStatus;
+    }
+
     pDriverObject->DriverUnload = (PDRIVER_UNLOAD)BeUnload;
 
     // IRP Major Requests
@@ -211,6 +216,9 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     {
         return NtStatus;
     }
+
+    pDeviceObject->Flags |= DO_BUFFERED_IO;
+    pDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING; // finished initializing
 
     return NtStatus;
 }

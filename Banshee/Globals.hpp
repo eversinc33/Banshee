@@ -91,7 +91,7 @@ namespace BeGlobals
         pMmCopyVirtualMemory = (MMCOPYVIRTUALMEMORY)BeGetSystemRoutineAddress(NtOsKrnl, "MmCopyVirtualMemory");
         pObReferenceObjectByName = (OBREFERENCEOBJECTBYNAME)BeGetSystemRoutineAddress(NtOsKrnl, "ObReferenceObjectByName");
         pZwQuerySystemInformation = (ZWQUERYSYSTEMINFORMATION)BeGetSystemRoutineAddress(NtOsKrnl, "ZwQuerySystemInformation");
-        pPsSetCreateProcessNotifyRoutineEx = (PSSETCREATEPROCESSNOTIFYROUTINEEX)BeGetSystemRoutineAddress(NtOsKrnl, "pPsSetCreateProcessNotifyRoutineEx");
+        pPsSetCreateProcessNotifyRoutineEx = (PSSETCREATEPROCESSNOTIFYROUTINEEX)BeGetSystemRoutineAddress(NtOsKrnl, "PsSetCreateProcessNotifyRoutineEx");
         if (!pZwTerminateProcess || !pZwOpenProcess || !pZwClose || !pZwProtectVirtualMemory || !pMmCopyVirtualMemory || !pObReferenceObjectByName || !pZwQuerySystemInformation || !pPsSetCreateProcessNotifyRoutineEx)
         {
             LOG_MSG("Failed to resolve one or more functions\n");
