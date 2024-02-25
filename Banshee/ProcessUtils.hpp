@@ -5,9 +5,16 @@
 #include "Globals.hpp"
 #include "WinTypes.hpp"
 
-// TODO doc
-// https://www.unknowncheats.me/forum/general-programming-and-reversing/572734-pid-process-name.html
-HANDLE GetPidFromProcessName(const UNICODE_STRING& processName) {
+/**
+ * Get the PID of the first match of a process from the process name
+ * https://www.unknowncheats.me/forum/general-programming-and-reversing/572734-pid-process-name.html
+ * 
+ * @param processName Name of the process to look up
+ * @returns HANDLE Process ID of the process specified in the param
+ */
+HANDLE 
+BeGetPidFromProcessName(const UNICODE_STRING& processName) 
+{
 
     NTSTATUS status = STATUS_SUCCESS;
     ULONG bufferSize = 0;
@@ -26,7 +33,8 @@ HANDLE GetPidFromProcessName(const UNICODE_STRING& processName) {
         else
         {
             status = BeGlobals::pZwQuerySystemInformation(SystemProcessInformation, buffer, bufferSize, &bufferSize);
-            if (!NT_SUCCESS(status)) {
+            if (!NT_SUCCESS(status)) 
+            {
                 ExFreePoolWithTag(buffer, DRIVER_TAG);
                 return pCurrent;
             }
@@ -34,7 +42,8 @@ HANDLE GetPidFromProcessName(const UNICODE_STRING& processName) {
     }
 
     pCurrent = (PSYSTEM_PROCESS_INFORMATION)buffer;
-    while (pCurrent) {
+    while (pCurrent) 
+    {
         if (pCurrent->ImageName.Buffer != NULL)
         {
             if (RtlCompareUnicodeString(&(pCurrent->ImageName), &processName, TRUE) == 0)
@@ -46,7 +55,8 @@ HANDLE GetPidFromProcessName(const UNICODE_STRING& processName) {
         if (pCurrent->NextEntryOffset == 0) {
             pCurrent = NULL;
         }
-        else {
+        else 
+        {
             pCurrent = (PSYSTEM_PROCESS_INFORMATION)(((PUCHAR)pCurrent) + pCurrent->NextEntryOffset);
         }
     }

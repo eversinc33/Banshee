@@ -90,6 +90,7 @@
     <ClCompile>
       <TreatWarningAsError>false</TreatWarningAsError>
       <ControlFlowGuard>false</ControlFlowGuard>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
     <Link>
       <AdditionalOptions>/INTEGRITYCHECK %(AdditionalOptions)</AdditionalOptions>

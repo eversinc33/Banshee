@@ -92,18 +92,21 @@ Run this in a VM, debug this VM with WinDbg and create a snapshot before. You wi
 
 ## TODO 
 
-* Shellcode injection from kernel land
 * ETW provider disabling à la https://securityintelligence.com/posts/direct-kernel-object-manipulation-attacks-etw-providers/
-* Registry key protection
-* MSR hooking à la https://www.cyberark.com/resources/threat-research-blog/fantastic-rootkits-and-where-to-find-them-part-1
-* GPU shenanigans
-* Communication over direct TCP to bypass `netstat` and others
-* Hiding only on special ocassion, e.g. on opening of task manager, to avoid patchguard crashes
-* Backdoor authentication as described in the phrack article linked above
+* IRP hook `tcpip.sys` to hide network connections
+* tamper with telemetry (maybe via windivert?)
 * enumerating more kernel callbacks
+* clean up code... neverending story. e.g. a proper sig scanning engine
+
+Maybe
 * remove threads from PspCidTable: https://www.unknowncheats.me/forum/anti-cheat-bypass/455676-remove-systemthread-pspcidtable.html
-* clean up code... neverending story
-** Add a function for signature lookups with masks
+* MSR hooking à la https://www.cyberark.com/resources/threat-research-blog/fantastic-rootkits-and-where-to-find-them-part-1
+* Backdoor authentication as described in the phrack article linked above
+* Hiding only on special ocassion, e.g. on opening of task manager, to avoid patchguard crashes
+* Shellcode injection from kernel land
+* Registry key protection
+
+
 
 ## Credits
 

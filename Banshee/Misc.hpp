@@ -41,6 +41,38 @@ BeIsStringTerminated(PWCHAR Array, ULONG ArrayLength)
     return bStringIsTerminated;
 }
 
+/**
+ * Check whether a wstring is null-terminated, not empty and properly aligned
+ *
+ * @return NTSTATUS depending on if the checks succeed or not
+ */
+NTSTATUS
+BeCheckStringIsAlignedNotEmptyAndTerminated(PWCHAR targetString, ULONG dwSize)
+{
+    // Check alignment
+    if (dwSize % sizeof(WCHAR) != 0)
+    {
+        LOG_MSG("Invalid alignment \r\n");
+        return STATUS_INVALID_BUFFER_SIZE;
+    }
+
+    if (!targetString)
+    {
+        LOG_MSG("Empty buffer \r\n");
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    LOG_MSG("String received: %ws \r\n", targetString);
+
+    if (BeIsStringTerminated(targetString, dwSize) == FALSE)
+    {
+        LOG_MSG("Not null terminated! \r\n");
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    return STATUS_SUCCESS;
+}
+
 /*
  * compares two wchar strings without case sensitivity
  * 

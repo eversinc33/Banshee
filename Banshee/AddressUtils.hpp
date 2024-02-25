@@ -152,7 +152,7 @@ BeGetSystemRoutineAddress(const IN ModuleName& moduleName, IN CHAR* functionToRe
         UNICODE_STRING processName;
         RtlInitUnicodeString(&processName, L"winlogon.exe");
 
-        HANDLE procId = GetPidFromProcessName(processName);
+        HANDLE procId = BeGetPidFromProcessName(processName);
         LOG_MSG("Found winlogon PID: %i\n", procId);
 
         if ((PsLookupProcessByProcessId(procId, &targetProc) != 0)) 

