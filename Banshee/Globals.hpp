@@ -63,6 +63,8 @@ namespace BeGlobals
     MMCOPYVIRTUALMEMORY pMmCopyVirtualMemory;
     OBREFERENCEOBJECTBYNAME pObReferenceObjectByName;
 
+    bool runKeyLogger = false;
+
     NTSTATUS
     BeInitGlobals(PDRIVER_OBJECT DriverObject)
     {

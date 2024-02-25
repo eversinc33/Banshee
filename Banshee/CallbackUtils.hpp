@@ -42,7 +42,7 @@ BeGetDriverForAddress(UINT64 address)
 	while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
 	{
 		UINT64 startAddr = UINT64(entry->DllBase);
-		UINT64 endAddr = UINT64(((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink)->DllBase);
+		// UINT64 endAddr = UINT64(((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink)->DllBase);
 		if (address >= startAddr && (currentBestMatch == NULL || startAddr > UINT64(currentBestMatch->DllBase)))
 		{
 			currentBestMatch = entry;
@@ -77,7 +77,7 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 		break;
 	default:
 		LOG_MSG("Unsupported callback type\r\n");
-		return 0;
+		return NULL;
 	}
 
 	UINT64 callbackRoutineAddr = 0;
@@ -92,7 +92,7 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 		if (!callbackRoutineAddr)
 		{
 			LOG_MSG("Failed to resolve set-notify routine\r\n");
-			return 0;
+			return NULL;
 		}
 
 		// Now resolve PspSetCreateXYZNotifyRoutine
@@ -114,7 +114,7 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 		if (!psp_callbackRoutineAddr)
 		{
 			LOG_MSG("Failed to resolve private setnotify routine\r\n");
-			return 0;
+			return NULL;
 		}
 
 		LOG_MSG("Private (psp) NotifyRoutine: 0x%llx\r\n", psp_callbackRoutineAddr);
@@ -137,11 +137,13 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 		if (!psp_callbackRoutineAddr)
 		{
 			LOG_MSG("Failed to resolve Array for callbacks\r\n");
-			return 0;
+			return NULL;
 		}
 
 		return callbackRoutineArrayAddr;
 	}
+
+	return NULL;
 }
 
 typedef struct _KernelCallback {
@@ -222,6 +224,10 @@ BeEmptyCreateProcessNotifyRoutine(
 	IN BOOLEAN Create
 )
 {
+	UNREFERENCED_PARAMETER(ParentId);
+	UNREFERENCED_PARAMETER(ProcessId);
+	UNREFERENCED_PARAMETER(Create);
+
 	AutoLock<FastMutex> _lock(BeGlobals::callbackLock);
 
 	LOG_MSG("Empty CreateProcessNotifyRoutine called\n");
@@ -237,6 +243,10 @@ BeEmptyCreateThreadNotifyRoutine(
 	IN BOOLEAN Create
 )
 {
+	UNREFERENCED_PARAMETER(ProcessId);
+	UNREFERENCED_PARAMETER(ThreadId);
+	UNREFERENCED_PARAMETER(Create);
+
 	AutoLock<FastMutex> _lock(BeGlobals::callbackLock);
 
 	LOG_MSG("Empty CreateThreadNotifyRoutine called\n");

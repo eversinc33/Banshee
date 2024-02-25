@@ -7,7 +7,7 @@
 
 // TODO doc
 // https://www.unknowncheats.me/forum/general-programming-and-reversing/572734-pid-process-name.html
-HANDLE Get_pid_from_name(const UNICODE_STRING& processName) {
+HANDLE GetPidFromProcessName(const UNICODE_STRING& processName) {
 
     NTSTATUS status = STATUS_SUCCESS;
     ULONG bufferSize = 0;

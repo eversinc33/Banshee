@@ -107,6 +107,7 @@ Run this in a VM, debug this VM with WinDbg and create a snapshot before. You wi
 
 ## Credits
 
+* UnknownCheats which is literally the best resource for kernel driver / rootkit stuff
 * Some offset code from and feature inspiration (please check out, great project): https://github.com/Idov31/Nidhogg
 * Great introduction to drivers: https://www.codeproject.com/articles/9504/driver-development-part-1-introduction-to-drivers
 * Great overview of techniques: https://www.cyberark.com/resources/threat-research-blog/fantastic-rootkits-and-where-to-find-them-part-1
