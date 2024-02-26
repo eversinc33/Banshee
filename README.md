@@ -61,6 +61,10 @@ For now, only Process- and Thread-Creation kernel callbacks are enumerated, by p
 
 By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any process from opening a handle to our driver file (This will probably change to a filter driver concept soon).
 
+#### Keylogging from the Kernel
+
+Using the undocumented `gafAsyncKeyState` function we can parse keystrokes from a session without using any API calls besides reading memory (https://www.unknowncheats.me/forum/c-and-c-/327461-kernel-mode-key-input.html).
+
 ## Patchguard triggering features
 
 These should only be used with a patchguard bypass or in a lab environment as they trigger BSOD.
@@ -70,11 +74,7 @@ These should only be used with a patchguard bypass or in a lab environment as th
 Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly linked list called `ActiveProcessLink` which is queried by Windows to enumerate running processes. If we simply unlink an entry here, we can hide our process from tools like Process Monitor or Task Manager.
 
 * This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory. While the former can be fixed by not being so lazy when programming, the latter can not be as easily bypassed from within the driver.
-
-#### Keylogging from the Kernel
-
-Using the undocumented `gafAsyncKeyState` function we can parse keystrokes from a session without using any API calls besides reading memory (https://www.unknowncheats.me/forum/c-and-c-/327461-kernel-mode-key-input.html).
-
+* 
 ## Testing & debugging the driver
 
 You need to enable testsigning to load the driver. I also recommend to enable debugging for the kernel.
