@@ -25,13 +25,11 @@ int targetPid = GetDefenderPID();    // this would be your implementation
 banshee.IoCtlKillProcess(targetPid); // instruct banshee to kill the targetprocess
 ```
 
-An example implementation of all the features in a command line client is found in [./BansheeClient/BansheeClient.cpp](./BansheeClient/BansheeClient.cpp).
+An example implementation of all the features in a command line client is found in [./BansheeClient/BansheeClient.cpp](./BansheeClient/BansheeClient.cpp):
 
-#### BOF loading
-
-A beacon object file (BOF) for loading the driver is supplied in `auxiliary/LoadDriverBOF`.
-
-A BOF for calling the different functions will follow.
+<p align="center">
+<img src="./img/CLI.png" alt="Banshee CLI" width="600"/>
+</p>
 
 ## Features
 
