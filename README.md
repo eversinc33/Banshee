@@ -74,7 +74,7 @@ These should only be used with a patchguard bypass or in a lab environment as th
 Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly linked list called `ActiveProcessLink` which is queried by Windows to enumerate running processes. If we simply unlink an entry here, we can hide our process from tools like Process Monitor or Task Manager.
 
 * This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory. While the former can be fixed by not being so lazy when programming, the latter can not be as easily bypassed from within the driver.
-* 
+
 ## Testing & debugging the driver
 
 You need to enable testsigning to load the driver. I also recommend to enable debugging for the kernel.
@@ -109,8 +109,6 @@ Maybe
 * Hiding only on special ocassion, e.g. on opening of task manager, to avoid patchguard crashes
 * Shellcode injection from kernel land
 * Registry key protection
-
-
 
 ## Credits
 
