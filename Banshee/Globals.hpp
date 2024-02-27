@@ -65,7 +65,8 @@ namespace BeGlobals
     OBREFERENCEOBJECTBYNAME pObReferenceObjectByName;
     PSSETCREATEPROCESSNOTIFYROUTINEEX pPsSetCreateProcessNotifyRoutineEx;
 
-    bool runKeyLogger = false;
+    bool shutdown = false;
+    bool logKeys = false;
 
     NTSTATUS
     BeInitGlobals(PDRIVER_OBJECT DriverObject)

