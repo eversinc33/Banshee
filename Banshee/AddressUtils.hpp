@@ -102,7 +102,7 @@ BeGetProcessLinkedListOffset()
 PVOID
 BeGetBaseAddrOfModule(WCHAR* moduleName)
 {
-    PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::driverObject)->DriverSection;
+    PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
     PKLDR_DATA_TABLE_ENTRY first = entry;
 
     while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)

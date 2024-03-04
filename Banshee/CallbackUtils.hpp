@@ -13,7 +13,7 @@
 VOID
 BeEnumerateDrivers()
 {
-    PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::driverObject)->DriverSection;
+    PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
     PKLDR_DATA_TABLE_ENTRY first = entry;
 
     while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
@@ -32,7 +32,7 @@ BeEnumerateDrivers()
 PKLDR_DATA_TABLE_ENTRY
 BeGetDriverForAddress(UINT64 address)
 {
-	PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::driverObject)->DriverSection;
+	PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
 	PKLDR_DATA_TABLE_ENTRY first = entry;
 
 	LOG_MSG("Looking for address: 0x%llx\r\n", address);

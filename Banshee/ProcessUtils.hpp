@@ -78,8 +78,8 @@ BeGetEprocessByPid(IN ULONG pid)
     if (PsLookupProcessByProcessId(ULongToHandle(pid), &process) != 0)
     {
         LOG_MSG("PID %i not found \r\n", (ULONG)pid);
-        ObDereferenceObject(process);
         return NULL;
     }
+
     return process;
 }

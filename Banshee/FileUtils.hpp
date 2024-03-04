@@ -7,9 +7,6 @@
 #include "Misc.hpp"
 #include "WinTypes.hpp"
 
-// https://github.com/Idov31/Nidhogg/blob/d9f3b0366aad55ef6dc815361d5ec0943cd378d9/Nidhogg/WindowsTypes.hpp#L250
-extern "C" POBJECT_TYPE *IoDriverObjectType;
-
 /**
  * Finds the filename from the given full path.
  *

@@ -47,9 +47,6 @@
     <ClInclude Include="WinTypes.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="KernelCallbacks.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="AddressUtils.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

