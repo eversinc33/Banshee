@@ -73,8 +73,6 @@ BYTE PS_PROTECTED_NONE = 0x00; // Keine Keine
 class Banshee 
 {
 private:
-    const std::string deviceName = "\\\\.\\Banshee";
-
     HANDLE hDevice = NULL; 
 
 public:
@@ -89,21 +87,37 @@ public:
     }
 
     /**
-     * Initializes the Banshee driver by getting a handle to the driver.
+     * Initializes the Banshee driver by getting a handle to the shared memory regions used to communicate.
      *
      * @return BANSHEE_STATUS status code.
      */
     BANSHEE_STATUS 
     Initialize()
     {
-        if (!this->hDevice)
+        auto BUF_SIZE = 4096;
+
+        // Create file mappings for command and answer shared memory regions
+        HANDLE hCommandMapFile;
+        HANDLE hAnswerMapFile;
+        LPCTSTR pCommandBuf;
+        LPCTSTR pAnswerBuf;
+        
+        hAnswerMapFile = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, BUF_SIZE, L"Global\\BeAnswer");
+        hCommandMapFile = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, BUF_SIZE, L"Global\\BeCommand");
+        if (hCommandMapFile == NULL || hAnswerMapFile == NULL)
         {
-            this->hDevice = CreateFileA(this->deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-            if (!this->hDevice || this->hDevice == INVALID_HANDLE_VALUE)
-            {
-                return BE_ERR_FAILED_TO_INITIALIZE;
-            }
+            return BE_ERR_FAILED_TO_INITIALIZE;
         }
+
+        pAnswerBuf = (LPTSTR)MapViewOfFile(hAnswerMapFile, FILE_MAP_ALL_ACCESS, 0, 0, BUF_SIZE);
+        pCommandBuf = (LPTSTR)MapViewOfFile(hCommandMapFile, FILE_MAP_ALL_ACCESS, 0, 0, BUF_SIZE);
+        if (pCommandBuf == NULL || pAnswerBuf == NULL)
+        {
+            CloseHandle(hCommandMapFile);
+            CloseHandle(hAnswerMapFile);
+            return BE_ERR_FAILED_TO_INITIALIZE;
+        }
+
         return BE_SUCCESS;
     }
 

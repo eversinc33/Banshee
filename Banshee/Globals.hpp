@@ -18,6 +18,17 @@ namespace BeGlobals
     ZWQUERYSYSTEMINFORMATION pZwQuerySystemInformation;
 }
 
+#include "Misc.hpp"
+
+namespace BeGlobals
+{
+    // For communication with the userland process
+    HANDLE hSharedMemory = NULL;
+    PVOID pSharedMemory = NULL;
+    HANDLE commandEvent, answerEvent = NULL;
+}
+
+#include "MemoryUtils.hpp"
 #include "AddressUtils.hpp"
 #include "AutoLock.hpp"
 
@@ -69,7 +80,7 @@ namespace BeGlobals
     bool logKeys = false;
 
     NTSTATUS
-    BeInitGlobals(PDRIVER_OBJECT DriverObject)
+    BeInitGlobals()
     {
         // We need this to resolve the base addr of modules ... TODO FIXME
         UNICODE_STRING usObRefByName = RTL_CONSTANT_STRING(L"ObReferenceObjectByName");
@@ -119,6 +130,13 @@ namespace BeGlobals
             LOG_MSG("Failed to resolve one or more functions\n");
             return STATUS_NOT_FOUND;
         }
+
+        // Setup shared memory for interprocess communications
+        UNICODE_STRING commandEventName = RTL_CONSTANT_STRING(L"Global\\BeCommand");
+        UNICODE_STRING answerEventName = RTL_CONSTANT_STRING(L"Global\\BeAnswer");
+        BeCreateNamedEvent(&commandEvent, &commandEventName);
+        BeCreateNamedEvent(&answerEvent, &answerEventName);
+        BeCreateSharedMemory(hSharedMemory, pSharedMemory);
 
         return STATUS_SUCCESS;
     }

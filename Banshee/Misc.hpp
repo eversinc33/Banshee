@@ -163,3 +163,52 @@ GetBaseNameFromFullPath(PCHAR FullName)
 
     return NULL;
 }
+
+/**
+ * TODO
+ */
+NTSTATUS 
+BeCreateNamedEvent(PHANDLE phEvent, PUNICODE_STRING EventName)
+{
+    OBJECT_ATTRIBUTES objAttributes;
+    NTSTATUS status;
+
+    InitializeObjectAttributes(&objAttributes, EventName, OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    status = ZwCreateEvent(phEvent, EVENT_ALL_ACCESS, &objAttributes, NotificationEvent, FALSE);
+
+    if (!NT_SUCCESS(status)) 
+    {
+        DbgPrint("Failed to create named event: 0x%X\n", status);
+    }
+
+    return status;
+}
+
+/**
+ * TODO
+ */
+NTSTATUS 
+BeSetNamedEvent(HANDLE hEvent, BOOLEAN set)
+{
+    NTSTATUS status;
+
+    if (set)
+    {
+        status = KeSetEvent((PRKEVENT)hEvent, IO_NO_INCREMENT, FALSE);
+        if (!NT_SUCCESS(status)) 
+        {
+            LOG_MSG("Failed to set named event: 0x%X\n", status);
+        }
+    }
+    else
+    {
+        status = KeResetEvent((PRKEVENT)hEvent);
+        if (!NT_SUCCESS(status)) 
+        {
+            LOG_MSG("Failed to reset named event: 0x%X\n", status);
+        }
+    }
+ 
+    return status;
+}

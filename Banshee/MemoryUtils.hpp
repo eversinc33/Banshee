@@ -8,6 +8,63 @@
 #include "WinTypes.hpp"
 #include <intrin.h>
 
+/**
+ * TODO
+ */
+NTSTATUS 
+BeCreateSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
+{
+	UNICODE_STRING sectionName;
+	OBJECT_ATTRIBUTES objAttributes;
+	LARGE_INTEGER sectionSize;
+	SIZE_T bufSize = 1024; // TODO
+
+	RtlInitUnicodeString(&sectionName, L"\\Global\\MySharedMemory"); // TODO
+
+	InitializeObjectAttributes(&objAttributes, &sectionName, OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+	sectionSize.QuadPart = bufSize;
+
+	NTSTATUS status = ZwCreateSection(&hSharedMemory, SECTION_ALL_ACCESS, &objAttributes, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
+
+	if (!NT_SUCCESS(status)) 
+	{
+		LOG_MSG("Failed to create shared memory: 0x%X\n", status);
+		return status;
+	}
+
+	// Map the shared memory into kernel address space
+	status = ZwMapViewOfSection(hSharedMemory, ZwCurrentProcess(), &pSharedMemory, 0, sectionSize.QuadPart, NULL, &bufSize, ViewUnmap, 0, PAGE_READWRITE);
+
+	if (!NT_SUCCESS(status)) 
+	{
+		LOG_MSG("Failed to map shared memory: 0x%X\n", status);
+		ZwClose(hSharedMemory);
+		return status;
+	}
+
+	return STATUS_SUCCESS;
+}
+
+/**
+ * TODO
+ */
+VOID 
+BeCloseSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
+{
+	if (BeGlobals::pSharedMemory != NULL) 
+	{
+		ZwUnmapViewOfSection(ZwCurrentProcess(), pSharedMemory);
+		BeGlobals::pSharedMemory = NULL;
+	}
+
+	if (BeGlobals::hSharedMemory != NULL) 
+	{
+		ZwClose(hSharedMemory);
+		hSharedMemory = NULL;
+	}
+}
+
 // Disable write protection by setting cr0
 KIRQL 
 WPOFFx64()

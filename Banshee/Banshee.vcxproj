@@ -139,7 +139,7 @@
   <ItemGroup>
     <ClInclude Include="DriverMeta.hpp" />
     <ClInclude Include="Globals.hpp" />
-    <ClInclude Include="IOCTLS.hpp" />
+    <ClInclude Include="Commands.hpp" />
     <ClInclude Include="Misc.hpp" />
     <ClInclude Include="ProcessUtils.hpp" />
   </ItemGroup>

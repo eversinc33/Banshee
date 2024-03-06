@@ -52,8 +52,6 @@ main(INT argc, CHAR *argv[])
             printf("Keylogging:\n");
             printf("    keylog         - start keylogger\n");
             printf("    stop_keylog    - stop keylogger\n");
-            printf("Misc:\n");
-            printf("    test      - test driver\n");
             printf("\n");
             printf("    exit      - exit banshee\n");
             continue;
@@ -62,10 +60,6 @@ main(INT argc, CHAR *argv[])
         {
             shouldExit = true;
             continue;
-        }
-        else if (choice == "test")
-        {
-            status = banshee.IoCtlTestDriver();
         }
         else if (choice == "kill")
         {
