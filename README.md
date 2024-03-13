@@ -22,8 +22,8 @@ You can integrate Banshee into your tooling, by including the `Banshee.hpp` file
 Banshee banshee = Banshee();
 banshee.Initialize();
 
-int targetPid = GetDefenderPID();    // this would be your implementation
-banshee.IoCtlKillProcess(targetPid); // instruct banshee to kill the targetprocess
+int targetPid = GetDefenderPID(); // this would be your implementation
+banshee.KillProcess(targetPid);   // instruct banshee to kill the targetprocess
 ```
 
 An example implementation of all the features in a command line client is found in [./BansheeClient/BansheeClient.cpp](./BansheeClient/BansheeClient.cpp):
@@ -62,6 +62,12 @@ By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any proce
 
 Using the undocumented `gafAsyncKeyState` function we can parse keystrokes from a session without using any API calls besides reading memory (https://www.unknowncheats.me/forum/c-and-c-/327461-kernel-mode-key-input.html).
 
+## Misc
+
+#### Communication over SharedMemory
+
+Banshee does not communicate over IOCTLs as most drivers do, but rather over shared memory. This way no `DriverObject` needs to be registered, which would point to our unbacked memory region (if mapped to memory) and would lead anti-rootkit software directly onto us. We can still get clapped with NMI callbacks, but hopefully, a custom mapper I have planned should solve that (WIP).
+
 ## Patchguard triggering features
 
 These should only be used with a patchguard bypass or in a lab environment as they trigger BSOD.
@@ -92,25 +98,15 @@ Run this in a VM, debug this VM with WinDbg and create a snapshot before. You wi
 
 ## TODO 
 
-* reflectively loading the driver and cleaning mmunloaded/piddbcache afterwards
-* dont use ioctls but shared memory instead
 * enumerating more kernel callbacks
-* clean up code... neverending story. e.g. a proper sig scanning engine
-
-Maybe
 * ETW provider disabling à la https://securityintelligence.com/posts/direct-kernel-object-manipulation-attacks-etw-providers/
-* IRP hook `tcpip.sys` to hide network connections
-* tamper with telemetry (maybe via windivert?)
-* remove threads from PspCidTable: https://www.unknowncheats.me/forum/anti-cheat-bypass/455676-remove-systemthread-pspcidtable.html
-* MSR hooking à la https://www.cyberark.com/resources/threat-research-blog/fantastic-rootkits-and-where-to-find-them-part-1
-* Backdoor authentication as described in the phrack article linked above
-* Hiding only on special ocassion, e.g. on opening of task manager, to avoid patchguard crashes
-* Shellcode injection from kernel land
-* Registry key protection
+* usability for the client
+* clean up code... neverending story. e.g. a proper sig scanning engine
 
 ## Credits
 
-* UnknownCheats which is literally the best resource for kernel driver / rootkit stuff
+* UnknownCheats which is literally the best resource for anti-anti-rootkit stuff
+* OSROnline, although even more toxic than UC still being helpful 
 * Some offset code from and feature inspiration (please check out, great project): https://github.com/Idov31/Nidhogg
 * Great introduction to drivers: https://www.codeproject.com/articles/9504/driver-development-part-1-introduction-to-drivers
 * Great overview of techniques: https://www.cyberark.com/resources/threat-research-blog/fantastic-rootkits-and-where-to-find-them-part-1

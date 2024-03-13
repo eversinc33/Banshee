@@ -32,9 +32,6 @@
     <ClInclude Include="Misc.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="IOCTLS.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ProcessUtils.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -66,6 +63,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Keylogger.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Commands.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

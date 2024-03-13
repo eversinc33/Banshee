@@ -258,6 +258,8 @@ BeEmptyCreateThreadNotifyRoutine(
 NTSTATUS
 BeReplaceKernelCallbacksOfDriver(PWCH targetDriverModuleName, CALLBACK_TYPE type)
 {
+	LOG_MSG("Target: %S\n", targetDriverModuleName);
+
 	// get address for the kernel callback array
 	auto arrayAddr = BeGetKernelCallbackArrayAddr(type);
 	if (!arrayAddr)

