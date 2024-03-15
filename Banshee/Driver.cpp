@@ -66,8 +66,8 @@ BeUnload()
                     switch (callbackType)
                     {
                     case CreateProcessNotifyRoutine:
+                    case CreateThreadNotifyRoutine:
                         InterlockedExchange64((LONG64*)callbackAddr, callbackToRestore);
-                        break;
                     default:
                         LOG_MSG("Invalid callback type\r\n");
                         return STATUS_INVALID_PARAMETER;
@@ -150,14 +150,7 @@ BeMainLoop(PVOID StartContext)
                 KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
                 for (auto i = 0U; i < cbData.size(); ++i)
                 {
-                    CALLBACK_DATA cbd = { // TODO: this aint pretty, its a pity...
-                        cbData[i].driverBase,
-                        cbData[i].offset,
-                        NULL
-                    };
-                    memcpy(cbd.driverName, cbData[i].driverName, (wcslen(cbData[i].driverName) + 1) * sizeof(WCHAR));
-
-                    memcpy((PVOID)&(*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).callbackData[i], (PVOID)&cbd, sizeof(CALLBACK_DATA));
+                    memcpy((PVOID)&(*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).callbackData[i], (PVOID)&cbData[i], sizeof(CALLBACK_DATA));
                 }
                 // Write amount of callbacks to ulValue
                 (*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).ulValue = (ULONG)cbData.size();
@@ -250,6 +243,7 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     LOG_MSG("| |--| < | |__| | | |  | | '------. | |--| | | |---- | |---- \n");
     LOG_MSG("|_|__|_/ |_|  |_| |_|  |_|  ____|_/ |_|  |_| |_|____ |_|____ \n");
     LOG_MSG(BANSHEE_VERSION);
+    LOG_MSG("\n");
 
     // If mapped, e.g. with kdmapper, those are empty.
     UNREFERENCED_PARAMETER(pDriverObject);

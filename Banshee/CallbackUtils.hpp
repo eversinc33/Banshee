@@ -37,20 +37,19 @@ BeGetDriverForAddress(UINT64 address)
 
 	LOG_MSG("Looking for address: 0x%llx\r\n", address);
 
-	// HACK: TODO: drivers are not sorted by address, so i do stupid shit here
-	PKLDR_DATA_TABLE_ENTRY currentBestMatch = NULL;
-	while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
+	for (auto i=0; i<512; ++i) // TODO: dirty hack to avoid bug
 	{
 		UINT64 startAddr = UINT64(entry->DllBase);
-		// UINT64 endAddr = UINT64(((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink)->DllBase);
-		if (address >= startAddr && (currentBestMatch == NULL || startAddr > UINT64(currentBestMatch->DllBase)))
+		UINT64 endAddr = startAddr + UINT64(entry->SizeOfImage);
+		LOG_MSG("Looking for: %ls 0x%llx 0x%llx\r\n", entry->BaseDllName.Buffer, startAddr, endAddr);
+		if (address >= startAddr && address < endAddr)
 		{
-			currentBestMatch = entry;
+			return (PKLDR_DATA_TABLE_ENTRY)entry;
 		}
 		entry = (PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink;
 	}
 
-	return currentBestMatch;
+	return NULL;
 }
 
 /**
@@ -146,22 +145,16 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 	return NULL;
 }
 
-typedef struct _KernelCallback {
-	PWCHAR driverName;
-	UINT64 driverBase;
-	UINT64 offset;
-} KernelCallback;
-
 /**
  * Enumerates kernel callbacks set 
  * 
  * @param type Type of callback to resolve
  * @returns ktd::vector<KernelCallback, PagedPool> Vector of callbacks
  */
-ktd::vector<KernelCallback, PagedPool>
+ktd::vector<CALLBACK_DATA, PagedPool>
 BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 {
-	auto data = ktd::vector<KernelCallback, PagedPool>();
+	auto data = ktd::vector<CALLBACK_DATA, PagedPool>();
 
 	// get address for the kernel callback array
 	auto arrayAddr = BeGetKernelCallbackArrayAddr(type);
@@ -189,25 +182,43 @@ BeEnumerateKernelCallbacks(CALLBACK_TYPE type)
 		// get corresponding driver
 		auto driver = BeGetDriverForAddress(callbackFunctionAddr);
 
-		if (!driver)
+		// If unbacked memory with no associated driver
+		if (driver == NULL)
 		{
-			LOG_MSG("Didnt find driver for callback\r\n");
-			continue;
+			// Print info
+			LOG_MSG("Callback: <Unbacked Memory>, 0x%llx\r\n", callbackFunctionAddr);
+
+			// create result struct
+			CALLBACK_DATA pcc = {
+				0,
+				callbackFunctionAddr,
+				NULL
+			};
+			PWCH pwsUnbacked = L"Unbacked";
+			memcpy(pcc.driverName, pwsUnbacked, (wcslen(pwsUnbacked) + 1) * sizeof(WCHAR));
+
+			// add to results
+			data.push_back(pcc);
 		}
+		else
+		{
+			// calculate offset of function
+			auto offset = callbackFunctionAddr - (UINT64)(driver->DllBase);
 
-		// calculate offset of function
-		auto offset = callbackFunctionAddr - (UINT64)(driver->DllBase);
+			// Print info
+			LOG_MSG("Callback: %ls, 0x%llx + 0x%llx\r\n", driver->BaseDllName.Buffer, (UINT64)driver->DllBase, offset);
 
-		// Print info
-		LOG_MSG("Callback: %ls, 0x%llx + 0x%llx\r\n", driver->BaseDllName.Buffer, (UINT64)driver->DllBase, offset);
+			// create result struct
+			CALLBACK_DATA pcc = {
+				(UINT64)driver->DllBase,
+				offset,
+				NULL
+			};
+			memcpy(pcc.driverName, driver->BaseDllName.Buffer, (wcslen(driver->BaseDllName.Buffer) + 1) * sizeof(WCHAR));
 
-		// add to result data
-		KernelCallback pcc = {
-			driver->BaseDllName.Buffer,
-			(UINT64)driver->DllBase,
-			offset
-		};
-		data.push_back(pcc);
+			// add to results
+			data.push_back(pcc);
+		}
 	}
 
 	return data;

