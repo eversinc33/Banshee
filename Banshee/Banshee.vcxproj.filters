@@ -68,6 +68,9 @@
     <ClInclude Include="Commands.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="VK.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md" />

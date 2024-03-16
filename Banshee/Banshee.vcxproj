@@ -135,6 +135,7 @@
     <ClInclude Include="Keylogger.hpp" />
     <ClInclude Include="MemoryUtils.hpp" />
     <ClInclude Include="Vector.hpp" />
+    <ClInclude Include="VK.hpp" />
     <ClInclude Include="WinTypes.hpp" />
   </ItemGroup>
   <ItemGroup>
