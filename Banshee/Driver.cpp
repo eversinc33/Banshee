@@ -68,9 +68,9 @@ BeUnload()
                     case CreateProcessNotifyRoutine:
                     case CreateThreadNotifyRoutine:
                         InterlockedExchange64((LONG64*)callbackAddr, callbackToRestore);
+                        break;
                     default:
                         LOG_MSG("Invalid callback type\r\n");
-                        return STATUS_INVALID_PARAMETER;
                         break;
                     }
                 }
