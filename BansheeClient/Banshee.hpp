@@ -130,6 +130,7 @@ public:
         hMapFile = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, L"Global\\BeShared");
         if (hMapFile == NULL)
         {
+
             return BE_ERR_FAILED_TO_INITIALIZE;
         }
 
@@ -140,8 +141,8 @@ public:
         }
 
         // Get handles to events
-        hCommandEvent = OpenEventW(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, L"Global\\BeCommandEvent");
-        hAnswerEvent = OpenEventW(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, L"Global\\BeAnswerEvent");
+        hCommandEvent = OpenEventW(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, L"Global\\BeCommandEvt");
+        hAnswerEvent = OpenEventW(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, L"Global\\BeAnswerEvt");
 
         if (hCommandEvent == NULL || hAnswerEvent == NULL)
         {
@@ -220,7 +221,7 @@ public:
         {
             return status;
         }
-        for (auto i = 0L; i < pSharedBuf->ulValue; ++i)
+        for (ULONG i = 0L; i < pSharedBuf->ulValue; ++i)
         {
             auto cbData = pSharedBuf->callbackData[i];
             callbackData.push_back(

@@ -168,7 +168,7 @@ BeGetSystemRoutineAddress(const IN ModuleName& moduleName, IN CHAR* functionToRe
         {
             PULONG addr = (PULONG)((ULONG_PTR)moduleBase + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
 
-            LOG_MSG("Found: 0x%llx\n", addr);
+            LOG_MSG("Found: 0x%llx\n", (ULONG_PTR)addr);
 
             if (inWin32kModule)
             {

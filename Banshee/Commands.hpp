@@ -195,9 +195,6 @@ BeCmd_HideProcess(HANDLE pid)
 ktd::vector<CALLBACK_DATA, PagedPool>
 BeCmd_EnumerateCallbacks(CALLBACK_TYPE type)
 {
-    NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
-    LOG_MSG("Enumerate callbacks\r\n");
-
     return BeEnumerateKernelCallbacks(type);
 }
 

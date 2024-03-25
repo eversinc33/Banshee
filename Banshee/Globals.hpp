@@ -145,7 +145,7 @@ namespace BeGlobals
         UNICODE_STRING processName;
         RtlInitUnicodeString(&processName, L"winlogon.exe");
         winLogonPid = BeGetPidFromProcessName(processName);
-        LOG_MSG("Found winlogon PID: %i\n", winLogonPid);
+        LOG_MSG("Found winlogon PID: %lu\n", HandleToUlong(winLogonPid));
         if (PsLookupProcessByProcessId(winLogonPid, &winLogonProc))
         {
             ObDereferenceObject(winLogonProc);
@@ -153,13 +153,13 @@ namespace BeGlobals
         }
 
         // Setup shared memory for interprocess communications
-        UNICODE_STRING commandEventName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeCommandEvent");
-        UNICODE_STRING answerEventName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeAnswerEvent");
+        UNICODE_STRING commandEventName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeCommandEvt");
+        UNICODE_STRING answerEventName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeAnswerEvt");
         BeCreateNamedEvent(&commandEvent, &commandEventName, FALSE);
         BeCreateNamedEvent(&answerEvent, &answerEventName, FALSE);
         LOG_MSG("Created events\n");
 
-        BeCreateSharedMemory(&hSharedMemory, &pSharedMemory);
+        BeCreateSharedMemory();
         LOG_MSG("Created shared memory\n");
 
         return STATUS_SUCCESS;

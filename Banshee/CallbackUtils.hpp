@@ -33,7 +33,6 @@ PKLDR_DATA_TABLE_ENTRY
 BeGetDriverForAddress(UINT64 address)
 {
 	PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
-	PKLDR_DATA_TABLE_ENTRY first = entry;
 
 	LOG_MSG("Looking for address: 0x%llx\r\n", address);
 
@@ -102,7 +101,7 @@ BeGetKernelCallbackArrayAddr(CALLBACK_TYPE type)
 				|| (*(BYTE*)(callbackRoutineAddr + i) == ASM_JMP_NEAR))
 			{
 				// param for CALL is offset to our routine
-				LOG_MSG("Offset: 0x%lx\r\n", *(PUINT32*)(callbackRoutineAddr + i + 1));
+				LOG_MSG("Offset: 0x%llx\r\n", *(PUINT32*)(callbackRoutineAddr + i + 1));
 				UINT32 offset = *(PUINT32)(callbackRoutineAddr + i + 1);
 				// add offset to addr of next instruction to get psp address
 				psp_callbackRoutineAddr = callbackRoutineAddr + i + offset + 5;
