@@ -74,9 +74,7 @@ These should only be used with a patchguard bypass or in a lab environment as th
 
 #### Hide Process by PID
 
-Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly linked list called `ActiveProcessLink` which is queried by Windows to enumerate running processes. If we simply unlink an entry here, we can hide our process from tools like Process Monitor or Task Manager.
-
-* This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory. While the former can be fixed by not being so lazy when programming, the latter can not be as easily bypassed from within the driver.
+Again, `EPROCESS` comes to help here - it contains a `LIST_ENTRY` of a doubly linked list called `ActiveProcessLink` which is queried by Windows to enumerate running processes. If we simply unlink an entry here, we can hide our process from tools like Process Monitor or Task Manager. This can cause Bluescreens, e.g. when the process is closed while being hidden or due to patchguard scanning the kernel memory. While the former can be fixed by not being so lazy when programming, the latter can not be as easily bypassed from within the driver.
 
 ## Testing & debugging the driver
 
@@ -99,8 +97,8 @@ Run this in a VM, debug this VM with WinDbg and create a snapshot before. You wi
 ## TODO 
 
 * enumerating more kernel callbacks
+* map the keypress array into userspace instead of running a looping kernel thread
 * ETW provider disabling à la https://securityintelligence.com/posts/direct-kernel-object-manipulation-attacks-etw-providers/
-* usability for the client
 * clean up code... neverending story. e.g. a proper sig scanning engine
 
 ## Credits
