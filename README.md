@@ -10,6 +10,11 @@ Banshee is meant to be used with [kdmapper](https://github.com/TheCruZ/kdmapper)
 
 I am just learning about kernel driver development, so this is for educational purposes mainly.
 
+A few blogposts on Banshee:
+
+* [Keylogging in the Windows kernel with undocumented data structures](https://eversinc33.com/posts/kernel-mode-keylogging/)
+* [(Anti-)Anti-Rootkit Techniques - Part I: UnKovering mapped rootkits](https://eversinc33.com/posts/anti-anti-rootkit-part-i/)
+
 ## What is a Rootkit?
 
 http://phrack.org/issues/55/5.html
