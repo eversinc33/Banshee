@@ -51,6 +51,8 @@ BeCreateSharedMemory()
 	{
 		LOG_MSG("Failed to map shared memory: 0x%X\n", status);
 		ZwClose(BeGlobals::hSharedMemory);
+  KeUnstackDetachProcess(&apc);
+  ExFreePool(sd);
 		return STATUS_UNSUCCESSFUL;
 	}
 	LOG_MSG("Mapped shared memory of size at 0x%llx\n", (ULONG_PTR)BeGlobals::pSharedMemory);
