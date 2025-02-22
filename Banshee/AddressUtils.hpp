@@ -9,7 +9,6 @@ enum ModuleName
 #include <ntifs.h>
 #include <wdf.h>
 #include "Globals.hpp"
-#include "Misc.hpp"
 #include "WinTypes.hpp"
 #include "DriverMeta.hpp"
 #include "ProcessUtils.hpp"

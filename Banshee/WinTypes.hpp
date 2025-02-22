@@ -2,7 +2,6 @@
 
 #include <ntifs.h>
 #include <wdf.h>
-#include "Misc.hpp"
 
 #define ASM_CALL_NEAR 0xE8
 #define ASM_JMP_NEAR 0xE9

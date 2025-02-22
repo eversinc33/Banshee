@@ -95,6 +95,10 @@ BeUnload()
     // Delete shared memory
     BeCloseSharedMemory(BeGlobals::hSharedMemory, BeGlobals::pSharedMemory);
 
+    // Close event handles
+    BeGlobals::pZwClose(BeGlobals::commandEvent);
+    BeGlobals::pZwClose(BeGlobals::answerEvent);
+
     // Deref objects
     ObDereferenceObject(BeGlobals::winLogonProc);
 

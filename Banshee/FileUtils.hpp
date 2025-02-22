@@ -4,7 +4,6 @@
 #include <wdf.h>
 #include <ntddk.h>
 #include "Globals.hpp"
-#include "Misc.hpp"
 #include "WinTypes.hpp"
 
 /**

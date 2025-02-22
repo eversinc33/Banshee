@@ -242,26 +242,9 @@ BeSetNamedEvent(HANDLE hEvent, BOOLEAN set)
 {
     NTSTATUS status = STATUS_SUCCESS;
 
-    // TODO: move this to the global init routine and only do it once but im too tired rn ...
-    KEVENT* pEvent = (KEVENT*)ExAllocatePoolWithTag(NonPagedPool, sizeof(KEVENT), DRIVER_TAG);
-    if (!pEvent)
-    {
-        LOG_MSG("Failed to ExAllocatePoolWithTag event object\n");
-        return STATUS_INSUFFICIENT_RESOURCES;
-    }
-
-    KeInitializeEvent(pEvent, NotificationEvent, FALSE);
-
-    status = ObReferenceObjectByHandle(hEvent, SYNCHRONIZE, *ExEventObjectType, KernelMode, (PVOID*)&pEvent, NULL);
-    if (!NT_SUCCESS(status))
-    {
-        LOG_MSG("Failed to obtain event object: 0x%X\n", status);
-        return status;
-    }
-
     if (set)
     {
-        status = KeSetEvent(pEvent, IO_NO_INCREMENT, FALSE);
+        status = BeGlobals::pZwSetEvent(hEvent, NULL);
         if (!NT_SUCCESS(status))
         {
             LOG_MSG("Failed to set named event: 0x%X\n", status);
@@ -269,23 +252,18 @@ BeSetNamedEvent(HANDLE hEvent, BOOLEAN set)
     }
     else
     {
-        status = KeResetEvent(pEvent);
+        BeGlobals::pZwResetEvent(hEvent, NULL);
         if (!NT_SUCCESS(status))
         {
             LOG_MSG("Failed to reset named event: 0x%X\n", status);
         }
     }
 
-    if (pEvent)
-    {
-        ObDereferenceObject(pEvent);
-    }
-
     return status;
 }
 
 /**
- * Sets a named event to a state
+ * Wait for an event to be set
  *
  * @param hEvent Handle to the event
  * @returns NTSTATUS status code
@@ -293,35 +271,9 @@ BeSetNamedEvent(HANDLE hEvent, BOOLEAN set)
 NTSTATUS 
 BeWaitForEvent(HANDLE hEvent)
 {
-    NTSTATUS status;
-
-    // TODO: move this to the global init routine and only do it once but im too tired rn ...
-    KEVENT* pEvent = (KEVENT*)ExAllocatePoolWithTag(NonPagedPool, sizeof(KEVENT), DRIVER_TAG);
-    if (!pEvent)
-    {
-        return STATUS_INSUFFICIENT_RESOURCES;
-    }
-
-    KeInitializeEvent(pEvent, NotificationEvent, FALSE);
-
-    status = ObReferenceObjectByHandle(hEvent, EVENT_ALL_ACCESS, *ExEventObjectType, KernelMode, (PVOID*)&pEvent, NULL);
-    if (!NT_SUCCESS(status))
-    {
-        ExFreePool(pEvent);
-        return status;
-    }
-
-    status = KeWaitForSingleObject(pEvent, Executive, KernelMode, FALSE, NULL);
-    if (!NT_SUCCESS(status))
-    {
-        ObDereferenceObject(pEvent);
-        return status;
-    }
-
-    ObDereferenceObject(pEvent);
-    ExFreePool(pEvent);
-
-    return STATUS_SUCCESS;
+    NTSTATUS status = STATUS_SUCCESS;
+    status = ZwWaitForSingleObject(hEvent, FALSE, NULL);
+    return status;
 }
 
 /**
@@ -344,7 +296,6 @@ BeCreateNamedEvent(PHANDLE phEvent, PUNICODE_STRING EventName, BOOLEAN initialSi
     InitializeObjectAttributes(&objAttributes, EventName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, sd);
 
     status = ZwCreateEvent(phEvent, EVENT_ALL_ACCESS, &objAttributes, NotificationEvent, initialSignaledState);
-
     if (!NT_SUCCESS(status)) 
     {
         DbgPrint("Failed to create named event: 0x%X\n", status);

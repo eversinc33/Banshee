@@ -1,7 +1,6 @@
 #include <ntifs.h>
 #include <wdf.h>
 #include "Globals.hpp"
-#include "Misc.hpp"
 #include "WinTypes.hpp"
 #include "MemoryUtils.hpp"
 #include "DriverMeta.hpp"

