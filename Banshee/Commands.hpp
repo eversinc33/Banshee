@@ -3,12 +3,6 @@
 #include <ntifs.h>
 #include <wdf.h>
 
-typedef struct _CALLBACK_DATA {
-    UINT64 driverBase;
-    UINT64 offset;
-    WCHAR driverName[64];
-} CALLBACK_DATA;
-
 #include "Globals.hpp"
 #include "ProcessUtils.hpp"
 #include "DriverMeta.hpp"
@@ -18,22 +12,6 @@ typedef struct _CALLBACK_DATA {
 #include "Vector.hpp"
 #include "CallbackUtils.hpp"
 #include "AutoLock.hpp"
-
-// --------------------------------------------------------------------------------------------------------
-// Command
-
-enum COMMAND_TYPE
-{
-    NONE = 0,
-    KILL_PROCESS = 1,
-    PROTECT_PROCESS = 2,
-    ELEVATE_TOKEN = 3,
-    HIDE_PROCESS = 4,
-    ENUM_CALLBACKS = 5,
-    ERASE_CALLBACKS = 6,
-    START_KEYLOGGER = 7,
-    UNLOAD = 8
-};
 
 // --------------------------------------------------------------------------------------------------------
 

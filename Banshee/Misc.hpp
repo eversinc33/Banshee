@@ -4,7 +4,7 @@
 #include "DriverMeta.hpp"
 
 #define DRIVER_LOG_PREFIX "::[Banshee] - "
-#define LOG_MSG(x, ...) DbgPrint((DRIVER_LOG_PREFIX x), __VA_ARGS__)
+#define LOG_MSG(x, ...) DbgPrintEx(0, 0, (DRIVER_LOG_PREFIX x), __VA_ARGS__)
 
 /*
  * Check whether a wstring is a nullpointer or contains only null characters

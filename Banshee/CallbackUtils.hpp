@@ -39,7 +39,7 @@ BeGetDriverForAddress(UINT64 address)
 	{
 		UINT64 startAddr = UINT64(entry->DllBase);
 		UINT64 endAddr = startAddr + UINT64(entry->SizeOfImage);
-		LOG_MSG("Looking for: %ls 0x%llx 0x%llx\r\n", entry->BaseDllName.Buffer, startAddr, endAddr);
+		// LOG_MSG("Looking for: %ls 0x%llx 0x%llx\r\n", entry->BaseDllName.Buffer, startAddr, endAddr);
 		if (address >= startAddr && address < endAddr)
 		{
 			return (PKLDR_DATA_TABLE_ENTRY)entry;

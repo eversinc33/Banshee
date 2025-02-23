@@ -39,7 +39,7 @@ BeCreateSharedMemory()
 		return status;
 	}
 
-	SIZE_T ulViewSize = 1024 * 10;
+	SIZE_T ulViewSize = sizeof(BANSHEE_PAYLOAD);
 
 	// TODO: document
 	KAPC_STATE apc;
@@ -54,7 +54,7 @@ BeCreateSharedMemory()
 		ExFreePool(sd);
 		return STATUS_UNSUCCESSFUL;
 	}
-	LOG_MSG("Mapped shared memory of size at 0x%llx\n", (ULONG_PTR)BeGlobals::pSharedMemory);
+	LOG_MSG("Mapped shared memory at 0x%llx\n", (ULONG_PTR)BeGlobals::pSharedMemory);
 
 	KeUnstackDetachProcess(&apc);
 

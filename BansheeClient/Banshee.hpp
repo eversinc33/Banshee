@@ -6,6 +6,10 @@
 #include <codecvt>
 #include <locale>
 #include <iostream>
+#define DEBUG_CLIENT
+#ifdef DEBUG_CLIENT
+#include <stdio.h>
+#endif
 
 // --------------------------------------------------------------------------------------------------------
 // Commands
@@ -124,28 +128,39 @@ public:
      */
     BANSHEE_STATUS Initialize()
     {
-        auto BUF_SIZE = 1024 * 10; // TODO
+        auto BUF_SIZE = sizeof(BANSHEE_PAYLOAD);
 
         // Create file mappings for command and answer shared memory regions
         hMapFile = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, L"Global\\BeShared");
         if (hMapFile == NULL)
         {
-
+#ifdef DEBUG_CLIENT
+            printf("Error with OpenFileMappingW\n");
+#endif
             return BE_ERR_FAILED_TO_INITIALIZE;
         }
 
         pSharedBuf = (BANSHEE_PAYLOAD*)MapViewOfFile(hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, BUF_SIZE);
         if (pSharedBuf == NULL)
         {
+#ifdef DEBUG_CLIENT
+            printf("Error with MapViewOfFile\n");
+#endif
             return BE_ERR_FAILED_TO_INITIALIZE;
         }
 
+#ifdef DEBUG_CLIENT
+        printf("Getting Events\n");
+#endif
         // Get handles to events
         hCommandEvent = OpenEventW(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, L"Global\\BeCommandEvt");
         hAnswerEvent = OpenEventW(SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, L"Global\\BeAnswerEvt");
 
         if (hCommandEvent == NULL || hAnswerEvent == NULL)
         {
+#ifdef DEBUG_CLIENT
+            printf("Error with Events\n");
+#endif
             return BE_ERR_FAILED_TO_INITIALIZE;
         }
 

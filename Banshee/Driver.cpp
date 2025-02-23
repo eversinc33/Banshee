@@ -19,15 +19,6 @@
 HANDLE hKeyloggerThread;
 HANDLE hMainLoop;
 
-typedef struct _BANSHEE_PAYLOAD {
-    COMMAND_TYPE cmdType;
-    ULONG status;
-    ULONG ulValue;
-    BYTE byteValue;
-    WCHAR wcharString[64];
-    CALLBACK_DATA callbackData[32];
-} BANSHEE_PAYLOAD;
-
 /**
  * Called on unloading the driver.
  *
