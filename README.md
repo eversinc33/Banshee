@@ -4,6 +4,8 @@
 <img src="./img/Banshee.jpg" alt="Banshee" width="400" />
 </p>
 
+*DISCLAIMER: This was the first driver code I ever wrote. As such, there is some pretty bad stuff in here, which you definitely should not copy.*
+
 Learning about Windows rootkits lately, so here is my own implementation of some techniques. For an overview, see **Features** below.
 
 Banshee is meant to be used with [kdmapper](https://github.com/TheCruZ/kdmapper) or a similar driver mapper.
@@ -71,7 +73,7 @@ Using the undocumented `gafAsyncKeyState` function we can parse keystrokes from 
 
 #### Communication over SharedMemory
 
-Banshee does not communicate over IOCTLs as most drivers do, but rather over shared memory. This way no `DriverObject` needs to be registered, which would point to our unbacked memory region (if mapped to memory) and would lead anti-rootkit software directly onto us. We can still get clapped with NMI callbacks, but hopefully, a custom mapper I have planned should solve that (WIP).
+Banshee does not communicate over IOCTLs as most drivers do, but rather over shared memory. This way no `DriverObject` needs to be registered, which would point to our unbacked memory region (if mapped to memory) and would lead anti-rootkit software directly onto us. 
 
 ## Patchguard triggering features
 
@@ -104,7 +106,6 @@ Run this in a VM, debug this VM with WinDbg and create a snapshot before. You wi
 * enumerating more kernel callbacks
 * map the keypress array into userspace instead of running a looping kernel thread
 * ETW provider disabling à la https://securityintelligence.com/posts/direct-kernel-object-manipulation-attacks-etw-providers/
-* clean up code... neverending story. e.g. a proper sig scanning engine
 
 ## Credits
 
