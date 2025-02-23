@@ -1,7 +1,7 @@
 #pragma once
 
 #define DRIVER_TAG 'ehsB'
-#define BANSHEE_VERSION "v0.1.0\n"
+#define BANSHEE_VERSION "v0.1.1\n"
 
 enum COMMAND_TYPE
 {
