@@ -238,8 +238,6 @@ BeEmptyCreateProcessNotifyRoutine(
 	UNREFERENCED_PARAMETER(Create);
 
 	AutoLock<FastMutex> _lock(BeGlobals::callbackLock);
-
-	LOG_MSG("Empty CreateProcessNotifyRoutine called\n");
 }
 
 /**
@@ -257,8 +255,6 @@ BeEmptyCreateThreadNotifyRoutine(
 	UNREFERENCED_PARAMETER(Create);
 
 	AutoLock<FastMutex> _lock(BeGlobals::callbackLock);
-
-	LOG_MSG("Empty CreateThreadNotifyRoutine called\n");
 }
 
 /**

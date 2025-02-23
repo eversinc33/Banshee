@@ -230,6 +230,7 @@ BeCreateSecurityDescriptor(OUT PSECURITY_DESCRIPTOR* sd)
     return NtStatus;
 }
 
+#if FALSE
 /**
  * Sets a named event to a state
  * 
@@ -304,3 +305,4 @@ BeCreateNamedEvent(PHANDLE phEvent, PUNICODE_STRING EventName, BOOLEAN initialSi
     ExFreePool(sd);
     return status;
 }
+#endif
