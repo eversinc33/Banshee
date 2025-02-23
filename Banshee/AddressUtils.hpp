@@ -99,14 +99,14 @@ BeGetProcessLinkedListOffset()
  * @returns PVOID address of ntoskrnl.exe
  */
 PVOID
-BeGetBaseAddrOfModule(WCHAR* moduleName)
+BeGetBaseAddrOfModule(PUNICODE_STRING moduleName)
 {
     PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
     PKLDR_DATA_TABLE_ENTRY first = entry;
 
     while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
     {
-        if (_strcmpi_w(entry->BaseDllName.Buffer, moduleName) == 0)
+        if (RtlCompareUnicodeString(&entry->BaseDllName, moduleName, TRUE) == 0)
         {
             return entry->DllBase;
         }

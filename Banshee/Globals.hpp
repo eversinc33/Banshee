@@ -125,10 +125,12 @@ namespace BeGlobals
         }
 
         // Get base address of modules
-        NtOsKrnlAddr = BeGetBaseAddrOfModule(L"ntoskrnl.exe");
-        Win32kBaseAddr = BeGetBaseAddrOfModule(L"win32kbase.sys");
-        LOG_MSG("ntoskrnl.exe base addr:0x%llx\n", (UINT64)NtOsKrnlAddr);
-        LOG_MSG("Win32kbase.sys base addr:0x%llx\n", (UINT64)Win32kBaseAddr);
+        UNICODE_STRING ntoskrnl = RTL_CONSTANT_STRING(L"ntoskrnl.exe");
+        UNICODE_STRING win32kbase = RTL_CONSTANT_STRING(L"win32kbase.sys");
+        NtOsKrnlAddr = BeGetBaseAddrOfModule(&ntoskrnl);
+        Win32kBaseAddr = BeGetBaseAddrOfModule(&win32kbase);
+        LOG_MSG("ntoskrnl.exe base addr   : 0x%llx\n", (UINT64)NtOsKrnlAddr);
+        LOG_MSG("Win32kbase.sys base addr : 0x%llx\n", (UINT64)Win32kBaseAddr);
 
         // init locks
         processListLock.Init();

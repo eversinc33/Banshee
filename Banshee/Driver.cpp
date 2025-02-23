@@ -71,6 +71,7 @@ BeUnload()
     }
 
     // Unhook if NTFS was hooked
+#if DENY_DRIVER_FILE_ACCESS
     if (BeGlobals::originalNTFS_IRP_MJ_CREATE_function != NULL)
     {
         if (BeUnhookNTFSFileCreate() == STATUS_SUCCESS)
@@ -82,6 +83,7 @@ BeUnload()
             LOG_MSG("Failed to remove NTFS hook!\n");
         }
     }
+#endif
 
     // Delete shared memory
     BeCloseSharedMemory(BeGlobals::hSharedMemory, BeGlobals::pSharedMemory);
@@ -243,7 +245,6 @@ DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
     LOG_MSG("| |--| < | |__| | | |  | | '------. | |--| | | |---- | |---- \n");
     LOG_MSG("|_|__|_/ |_|  |_| |_|  |_|  ____|_/ |_|  |_| |_|____ |_|____ \n");
     LOG_MSG(BANSHEE_VERSION);
-    LOG_MSG("\n");
 
     // If mapped, e.g. with kdmapper, those are empty.
     UNREFERENCED_PARAMETER(pDriverObject);

