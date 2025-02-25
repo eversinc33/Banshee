@@ -199,7 +199,6 @@ BeCreateSecurityDescriptor(OUT PSECURITY_DESCRIPTOR* sd)
     return NtStatus;
 }
 
-#if FALSE
 /**
  * Sets a named event to a state
  * 
@@ -265,7 +264,7 @@ BeCreateNamedEvent(PHANDLE phEvent, PUNICODE_STRING EventName, BOOLEAN initialSi
     OBJECT_ATTRIBUTES objAttributes;
     InitializeObjectAttributes(&objAttributes, EventName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, sd);
 
-    status = ZwCreateEvent(phEvent, EVENT_ALL_ACCESS, &objAttributes, NotificationEvent, initialSignaledState);
+    status = BeGlobals::pZwCreateEvent(phEvent, EVENT_ALL_ACCESS, &objAttributes, NotificationEvent, initialSignaledState);
     if (!NT_SUCCESS(status)) 
     {
         DbgPrint("Failed to create named event: 0x%X\n", status);
@@ -274,4 +273,3 @@ BeCreateNamedEvent(PHANDLE phEvent, PUNICODE_STRING EventName, BOOLEAN initialSi
     ExFreePool(sd);
     return status;
 }
-#endif

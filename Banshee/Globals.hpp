@@ -17,6 +17,7 @@ typedef NTSTATUS(*ZWQUERYSYSTEMINFORMATION)(IN SYSTEM_INFORMATION_CLASS SystemIn
 typedef NTSTATUS(*OBREFERENCEOBJECTBYNAME)(PUNICODE_STRING ObjectName, ULONG Attributes, PACCESS_STATE AccessState, ACCESS_MASK DesiredAccess, POBJECT_TYPE ObjectType, KPROCESSOR_MODE AccessMode, PVOID ParseContext, PVOID* Object);
 typedef NTSTATUS(*ZWSETEVENT)(IN HANDLE EventHandle, OUT PIO_STATUS_BLOCK IoStatusBlock OPTIONAL);
 typedef NTSTATUS(*ZWRESETEVENT)(IN HANDLE EventHandle, OUT PIO_STATUS_BLOCK IoStatusBlock OPTIONAL);
+typedef NTSTATUS(*ZWCREATEEVENT)(OUT PHANDLE EventHandle, IN ACCESS_MASK DesiredAccess, IN POBJECT_ATTRIBUTES ObjectAttributes OPTIONAL, IN EVENT_TYPE EventType, IN BOOLEAN InitialState);
 typedef NTSTATUS(*ZWCREATESECTION)(OUT PHANDLE SectionHandle, IN ACCESS_MASK DesiredAccess, IN POBJECT_ATTRIBUTES ObjectAttributes OPTIONAL, IN PLARGE_INTEGER MaximumSize OPTIONAL, IN ULONG SectionPageProtection, IN ULONG AllocationAttributes, IN HANDLE FileHandle OPTIONAL);
 typedef NTSTATUS(*ZWMAPVIEWOFSECTION)(IN HANDLE SectionHandle, IN HANDLE ProcessHandle, OUT PVOID* BaseAddress, IN ULONG_PTR ZeroBits, IN SIZE_T CommitSize, IN OUT PVOID* SectionOffset, IN OUT PSIZE_T ViewSize, IN SECTION_INHERIT InheritDisposition, IN ULONG AllocationType, IN ULONG Protect);
 typedef NTSTATUS(*ZWUNMAPVIEWOFSECTION)(IN HANDLE ProcessHandle, IN PVOID BaseAddress);
@@ -38,6 +39,9 @@ namespace BeGlobals
     ZWMAPVIEWOFSECTION pZwMapViewOfSection;
     ZWCREATESECTION pZwCreateSection;
     ZWUNMAPVIEWOFSECTION pZwUnmapViewOfSection;
+    ZWCREATEEVENT pZwCreateEvent;
+    ZWSETEVENT pZwSetEvent;
+    ZWRESETEVENT pZwResetEvent;
 
     HANDLE winLogonPid;
     PEPROCESS winLogonProc;
@@ -140,8 +144,9 @@ namespace BeGlobals
         pZwTerminateProcess = (ZWTERMINATEPROCESS)BeGetSystemRoutineAddress(NtOsKrnl, "ZwTerminateProcess");
         pZwOpenProcess = (ZWOPENPROCESS)BeGetSystemRoutineAddress(NtOsKrnl, "ZwOpenProcess");
         pZwClose = (ZWCLOSE)BeGetSystemRoutineAddress(NtOsKrnl, "ZwClose");
-        //pZwResetEvent = (ZWRESETEVENT)BeGetSystemRoutineAddress(NtOsKrnl, "ZwResetEvent");
-        //pZwSetEvent = (ZWSETEVENT)BeGetSystemRoutineAddress(NtOsKrnl, "ZwSetEvent");
+        pZwResetEvent = (ZWRESETEVENT)BeGetSystemRoutineAddress(NtOsKrnl, "ZwResetEvent");
+        pZwCreateEvent = (ZWCREATEEVENT)BeGetSystemRoutineAddress(NtOsKrnl, "ZwCreateEvent");
+        pZwSetEvent = (ZWSETEVENT)BeGetSystemRoutineAddress(NtOsKrnl, "ZwSetEvent");
         pZwProtectVirtualMemory = (ZWPROTECTVIRTUALMEMORY)BeGetSystemRoutineAddress(NtOsKrnl, "ZwProtectVirtualMemory");
         pZwCreateSection = (ZWCREATESECTION)BeGetSystemRoutineAddress(NtOsKrnl, "ZwCreateSection");
         pZwMapViewOfSection = (ZWMAPVIEWOFSECTION)BeGetSystemRoutineAddress(NtOsKrnl, "ZwMapViewOfSection");
@@ -151,7 +156,7 @@ namespace BeGlobals
         pPsSetCreateProcessNotifyRoutineEx = (PSSETCREATEPROCESSNOTIFYROUTINEEX)BeGetSystemRoutineAddress(NtOsKrnl, "PsSetCreateProcessNotifyRoutineEx");
         pZwUnmapViewOfSection = (ZWUNMAPVIEWOFSECTION)BeGetSystemRoutineAddress(NtOsKrnl, "ZwUnmapViewOfSection");
 
-        if (!pZwTerminateProcess || !pZwOpenProcess || !pZwClose || !pZwCreateSection || !pZwMapViewOfSection || !pZwProtectVirtualMemory || !pMmCopyVirtualMemory || !pZwQuerySystemInformation || !pPsSetCreateProcessNotifyRoutineEx || !pZwUnmapViewOfSection)
+        if (!pZwTerminateProcess || !pZwOpenProcess || !pZwClose || !pZwCreateEvent || !pZwSetEvent || !pZwResetEvent || !pZwCreateSection || !pZwMapViewOfSection || !pZwProtectVirtualMemory || !pMmCopyVirtualMemory || !pZwQuerySystemInformation || !pPsSetCreateProcessNotifyRoutineEx || !pZwUnmapViewOfSection)
         {
             LOG_MSG("Failed to resolve one or more functions\n");
             return STATUS_NOT_FOUND;

