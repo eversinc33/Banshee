@@ -7,38 +7,38 @@
 
 // https://github.com/gauraVsehgaL/cppkernel/blob/master/vector.hpp
 
-void* __cdecl operator new(size_t size, POOL_TYPE Pool)
+PVOID __cdecl operator new(SIZE_T size, POOL_TYPE Pool)
 {
     return ExAllocatePoolWithTag(Pool, size, DRIVER_TAG);
 }
 
-void* __cdecl operator new[](size_t size, POOL_TYPE Pool)
+PVOID __cdecl operator new[](SIZE_T size, POOL_TYPE Pool)
 {
     return ExAllocatePoolWithTag(Pool, size, DRIVER_TAG);
 }
 
 //	Placement new
-inline void* operator new(size_t, void* where)
+inline PVOID operator new(SIZE_T, PVOID where)
 {
     return where;
 }
 
-void __cdecl operator delete(void* ptr, size_t)
+VOID __cdecl operator delete(PVOID ptr, SIZE_T)
 {
     ExFreePool(ptr);
 }
 
-void __cdecl operator delete(void* ptr)
+VOID __cdecl operator delete(PVOID ptr)
 {
     ExFreePool(ptr);
 }
 
-void __cdecl operator delete[](void* ptr, size_t)
+VOID __cdecl operator delete[](PVOID ptr, SIZE_T)
 {
     ExFreePool(ptr);
 }
 
-void __cdecl operator delete[](void* ptr)
+VOID __cdecl operator delete[](PVOID ptr)
 {
     ExFreePool(ptr);
 }
@@ -93,14 +93,14 @@ class vector
     {
     }
 
-    vector(size_t InitialNumberOfElements) : ptr(nullptr), Capacity(0), NumberOfElements(0)
+    vector(SIZE_T InitialNumberOfElements) : ptr(nullptr), Capacity(0), NumberOfElements(0)
     {
         reserve(InitialNumberOfElements);
         NumberOfElements = InitialNumberOfElements;
         for (auto i = 0UL; i < NumberOfElements; i++) new (ptr + i) T();
     }
 
-    vector(size_t InitialNumberOfElements, T val) : vector(InitialNumberOfElements)
+    vector(SIZE_T InitialNumberOfElements, T val) : vector(InitialNumberOfElements)
     {
         reserve(InitialNumberOfElements);
         NumberOfElements = InitialNumberOfElements;
@@ -165,7 +165,7 @@ class vector
         deallocate(ptr);
     }
 
-    void reserve(size_t NewCapacity)
+    VOID reserve(SIZE_T NewCapacity)
     {
         if (NewCapacity <= Capacity || NewCapacity == 0)
             return;
@@ -185,7 +185,7 @@ class vector
         }
     }
 
-    void push_back(const T& val)
+    VOID push_back(const T& val)
     {
         auto NewCapacity = Capacity;
         if (NumberOfElements + 1 > Capacity)
@@ -203,7 +203,7 @@ class vector
         NumberOfElements++;
     }
 
-    void push_back(T&& val)
+    VOID push_back(T&& val)
     {
         auto NewCapacity = Capacity;
         if (NumberOfElements + 1 > Capacity)
@@ -241,17 +241,17 @@ class vector
         return ptr[NumberOfElements++];
     }
 
-    size_t size()
+    SIZE_T size()
     {
         return this->NumberOfElements;
     }
 
-    T& operator[](size_t index)
+    T& operator[](SIZE_T index)
     {
         return ptr[index];
     }
 
-    void Clear()
+    VOID Clear()
     {
         destroy(ptr, NumberOfElements);
         NumberOfElements = 0;
@@ -259,15 +259,15 @@ class vector
 
    private:
     T*     ptr;
-    size_t Capacity;
-    size_t NumberOfElements;
+    SIZE_T Capacity;
+    SIZE_T NumberOfElements;
 
-    T* allocate(size_t NewCapacity)
+    T* allocate(SIZE_T NewCapacity)
     {
         return static_cast<T*>(ExAllocatePoolWithTag(PoolType, sizeof(T) * NewCapacity, Tag));
     }
 
-    void destroy(T* mem, size_t NumElems)
+    VOID destroy(T* mem, SIZE_T NumElems)
     {
         if (!mem)
             return;
@@ -275,7 +275,7 @@ class vector
         for (auto i = 0UL; i < NumElems; i++) mem[i].~T();
     }
 
-    void deallocate(T* mem)
+    VOID deallocate(T* mem)
     {
         if (mem)
             ExFreePool(mem);

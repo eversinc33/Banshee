@@ -52,6 +52,24 @@ int getIntFromUser(const std::string& prompt)
 	return n;
 }
 
+std::wstring getWStringFromUser(const std::wstring& prompt)
+{
+	std::wcout << prompt;
+	std::wstring input;
+
+	std::getline(std::wcin, input);
+
+	while (input.empty() || input.length() >= MAX_PATH)
+	{
+		std::wcout << L"Invalid entry. The path must be between 1 and " << MAX_PATH - 1 << L" characters.\n";
+		std::wcout << prompt;
+		std::getline(std::wcin, input);
+	}
+
+	return input;
+}
+
+
 enum Color 
 {
 	DBLUE = 1, GREEN, GREY, DRED, DPURP, BROWN, LGREY, DGREY, BLUE, LIMEG, TEAL,

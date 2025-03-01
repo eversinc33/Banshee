@@ -9,6 +9,9 @@
 #define ASM_LEA_R13_BYTE2 0x8D
 #define ASM_LEA_RCX_BYTE1 0x48
 #define ASM_LEA_RCX_BYTE2 0x8D
+#define IMAGE_DIRECTORY_ENTRY_EXPORT 0
+#define IMAGE_NT_SIGNATURE 0x00004550
+#define MAX_PATH 256
 
 typedef UCHAR BYTE;
 typedef USHORT WORD;
@@ -239,4 +242,75 @@ typedef struct _SYSTEM_PROCESS_INFORMATION {
 	HANDLE InheritedFromProcessId;
 } SYSTEM_PROCESS_INFORMATION, * PSYSTEM_PROCESS_INFORMATION;
 
-extern "C" POBJECT_TYPE * IoDriverObjectType;
+typedef struct _PS_ATTRIBUTE {
+	ULONG Attribute;
+	SIZE_T Size;
+	union
+	{
+		ULONG Value;
+		PVOID ValuePtr;
+	};
+	PSIZE_T ReturnLength;
+} PS_ATTRIBUTE, * PPS_ATTRIBUTE;
+
+typedef struct _PS_ATTRIBUTE_LIST {
+	SIZE_T TotalLength;
+	PS_ATTRIBUTE Attributes[1];
+} PS_ATTRIBUTE_LIST, * PPS_ATTRIBUTE_LIST;
+
+typedef NTSTATUS(NTAPI* FnZwCreateThreadEx)(
+	PHANDLE ThreadHandle,
+	ACCESS_MASK DesiredAccess,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	HANDLE ProcessHandle,
+	PVOID StartRoutine,
+	PVOID Argument,
+	SIZE_T CreateFlags,
+	SIZE_T ZeroBits,
+	SIZE_T StackSize,
+	SIZE_T MaximumStackSize,
+	PPS_ATTRIBUTE_LIST AttributeList
+	);
+
+typedef struct _IMAGE_OPTIONAL_HEADER64 {
+	USHORT      Magic;
+	UCHAR       MajorLinkerVersion;
+	UCHAR       MinorLinkerVersion;
+	ULONG       SizeOfCode;
+	ULONG       SizeOfInitializedData;
+	ULONG       SizeOfUninitializedData;
+	ULONG       AddressOfEntryPoint;
+	ULONG       BaseOfCode;
+	ULONGLONG   ImageBase;
+	ULONG       SectionAlignment;
+	ULONG       FileAlignment;
+	USHORT      MajorOperatingSystemVersion;
+	USHORT      MinorOperatingSystemVersion;
+	USHORT      MajorImageVersion;
+	USHORT      MinorImageVersion;
+	USHORT      MajorSubsystemVersion;
+	USHORT      MinorSubsystemVersion;
+	ULONG       Win32VersionValue;
+	ULONG       SizeOfImage;
+	ULONG       SizeOfHeaders;
+	ULONG       CheckSum;
+	USHORT      Subsystem;
+	USHORT      DllCharacteristics;
+	ULONGLONG   SizeOfStackReserve;
+	ULONGLONG   SizeOfStackCommit;
+	ULONGLONG   SizeOfHeapReserve;
+	ULONGLONG   SizeOfHeapCommit;
+	ULONG       LoaderFlags;
+	ULONG       NumberOfRvaAndSizes;
+	IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
+} IMAGE_OPTIONAL_HEADER64, * PIMAGE_OPTIONAL_HEADER64;
+
+typedef struct _IMAGE_NT_HEADERS64 {
+	DWORD Signature;
+	IMAGE_FILE_HEADER FileHeader;
+	IMAGE_OPTIONAL_HEADER64 OptionalHeader;
+} IMAGE_NT_HEADERS64, * PIMAGE_NT_HEADERS64;
+
+EXTERN_C POBJECT_TYPE* IoDriverObjectType;
+EXTERN_C PLIST_ENTRY   PsLoadedModuleList;
+EXTERN_C PERESOURCE	   PsLoadedModuleResource;

