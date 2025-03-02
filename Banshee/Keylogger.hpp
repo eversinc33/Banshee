@@ -380,7 +380,7 @@ BeUpdateKeyStateMap(
 	for (auto Vk = 0u; Vk < 256; ++Vk) 
 	{
         //
-		// If key is down but wasnt previously, set it in the recent state as down
+        // If key is down but wasnt previously, set it in the recent state as down
         //
 		if (IS_KEY_DOWN(KeyStateMap, Vk) && !(IS_KEY_DOWN(KeyPreviousStateMap, Vk)))
 		{
