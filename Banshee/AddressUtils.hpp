@@ -130,7 +130,7 @@ BeGetBaseAddrOfModule(_In_ PUNICODE_STRING ModuleName)
 }
 
 /*
- * @brief Retrieves the base address of a system module.
+ * @brief Retrieves the base address of a system module or resolves a function address.
  *
  * @param[in] ModuleName Name of the module to resolve (e.g., "ntoskrnl.exe").
  * @param[in] FunctionToResolve Name of the function to resolve within the module.
@@ -159,7 +159,8 @@ BeGetSystemRoutineAddress(
     }
 
     //
-    // To read session driver modules, we need to be attached to a process running in a user session // TODO refactor to dedicated function
+    // To read session driver modules, we need to be attached to a process running in a user session 
+    // TODO refactor to dedicated function
     // https://www.unknowncheats.me/forum/general-programming-and-reversing/492970-reading-memory-win32kbase-sys.html
     //
     if (InWin32kModule)
@@ -208,6 +209,7 @@ BeGetSystemRoutineAddress(
     //
     return NULL;
 }
+
 /*
  * Gets offset of EPROCESS ProcessProtection dynamically by parsing PsIsProtectedProcessLight.
  * Shoutout to @never_unsealed and @C5Pider for pointing this out to me.

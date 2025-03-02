@@ -10,8 +10,10 @@
 #include "ProcessUtils.hpp"
 #include <intrin.h>
 
-/**
- * TODO
+/*
+ * @brief Creates a shared memory section accessible by all users.
+ *
+ * @return NTSTATUS STATUS_SUCCESS if successful, otherwise an error code.
  */
 NTSTATUS 
 BeCreateSharedMemory()
@@ -64,8 +66,11 @@ BeCreateSharedMemory()
 	return STATUS_SUCCESS;
 }
 
-/**
- * TODO
+/*
+ * @brief Closes the shared memory section and unmaps it.
+ *
+ * @param[in] HSharedMemory Handle to the shared memory section.
+ * @param[in] pSharedMemory Pointer to the mapped shared memory.
  */
 VOID 
 BeCloseSharedMemory(_In_ HANDLE HSharedMemory, _In_ PVOID pSharedMemory)
@@ -91,8 +96,10 @@ BeCloseSharedMemory(_In_ HANDLE HSharedMemory, _In_ PVOID pSharedMemory)
 	KeUnstackDetachProcess(&apc);
 }
 
-/**
- * @brief Disable write protection by setting cr0
+/*
+ * @brief Disables write protection on CR0 register.
+ *
+ * @return KIRQL Previous interrupt request level.
  */
 KIRQL 
 WPOFFx64()
@@ -105,8 +112,10 @@ WPOFFx64()
 	return Irql;
 }
 
-/** 
- * @brief Enable write protection by setting cr0
+/*
+ * @brief Enables write protection on CR0 register.
+ *
+ * @param[in] irql Previous interrupt request level to restore.
  */
 VOID 
 WPONx64(_In_ KIRQL irql)

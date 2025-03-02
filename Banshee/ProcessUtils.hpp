@@ -5,13 +5,13 @@
 #include "Globals.hpp"
 #include "WinTypes.hpp"
 
-/**
- * Get the PID of the first match of a process from the process name
+/*
+ * @brief Retrieves the PID of the first matching process by name.
  * https://www.unknowncheats.me/forum/general-programming-and-reversing/572734-pid-process-name.html
  * 
- * @param[in] ProcessName Name of the process to look up
- * 
- * @returns HANDLE Process ID of the process specified in the param
+ * @param[in] ProcessName Name of the process to look up.
+ *
+ * @returns HANDLE Process ID of the matching process, or NULL if not found.
  */
 HANDLE 
 BeGetPidFromProcessName(_In_ CONST UNICODE_STRING& ProcessName)
@@ -64,13 +64,12 @@ BeGetPidFromProcessName(_In_ CONST UNICODE_STRING& ProcessName)
     return pCurrent;
 }
 
-
-/**
- * Checks whether a process with the given pid exists and returns a pointer to the EPROCESS object
+/*
+ * @brief Retrieves the EPROCESS pointer for a given PID.
  *
- * @param[in] pid Pid of the process to check
- * 
- * @returns PEPROCESS pointer to the EPROCESS object or NULL if not existing
+ * @param[in] Pid PID of the process to retrieve.
+ *
+ * @returns PEPROCESS Pointer to the EPROCESS object, or NULL if not found.
  */
 PEPROCESS
 BeGetEprocessByPid(_In_ ULONG Pid)

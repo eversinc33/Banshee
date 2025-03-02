@@ -11,9 +11,11 @@
 #endif
 
 /*
- * @brief Check whether a wstring is a nullpointer or contains only null characters
+ * @brief Checks whether a wide string is null or contains only null characters.
  *
- * @return BOOLEAN True if nullpointer or only null characters
+ * @param[in] PWchar Pointer to a wide string.
+ *
+ * @return BOOLEAN True if null or only null characters, otherwise false.
  */
 BOOLEAN
 BeIsStringNull(_In_ PWCHAR PWchar)
@@ -21,10 +23,13 @@ BeIsStringNull(_In_ PWCHAR PWchar)
     return (PWchar == NULL || *PWchar == '\0');
 }
 
-/**
- * @brief Check whether a wstring is null-terminated
+/*
+ * @brief Checks whether a wide string is null-terminated.
  *
- * @return BOOLEAN True if null-terminated.
+ * @param[in] Array Pointer to a wide string.
+ * @param[in] ArrayLength Length of the string.
+ *
+ * @return BOOLEAN True if null-terminated, otherwise false.
  */
 BOOLEAN
 BeIsStringTerminated(_In_ PWCHAR Array, _In_ ULONG ArrayLength)
@@ -46,10 +51,13 @@ BeIsStringTerminated(_In_ PWCHAR Array, _In_ ULONG ArrayLength)
     return bStringIsTerminated;
 }
 
-/**
- * @brief Check whether a wstring is null-terminated, not empty and properly aligned
+/*
+ * @brief Checks whether a wide string is null-terminated, not empty, and properly aligned.
  *
- * @return NTSTATUS depending on if the checks succeed or not
+ * @param[in] TargetString The string to check.
+ * @param[in] Size The size of the string buffer.
+ *
+ * @return NTSTATUS STATUS_SUCCESS if valid, otherwise an error code.
  */
 NTSTATUS
 BeCheckStringIsAlignedNotEmptyAndTerminated(_In_ PWCHAR TargetString, _In_ ULONG Size)
@@ -81,12 +89,12 @@ BeCheckStringIsAlignedNotEmptyAndTerminated(_In_ PWCHAR TargetString, _In_ ULONG
 }
 
 /*
- * check if a wide string contains a substring without case sensitivity
- * 
- * @param[in] String string to check
- * @param[in] Pattern pattern to look for
- * 
- * @return PWCHAR NULL if no match is found, otherwise a pointer to the match
+ * @brief Performs a case-insensitive substring search in a wide string.
+ *
+ * @param[in] String The string to search in.
+ * @param[in] Pattern The pattern to search for.
+ *
+ * @return PWCHAR Pointer to the match if found, otherwise NULL.
  */
 PWCHAR
 StrStrIW(
@@ -122,10 +130,12 @@ StrStrIW(
 }
 
 /*
- * @brief Gets the base name of a full file path
+ * @brief Extracts the base name from a full file path.
  * Taken from: https://github.com/GetRektBoy724/DCMB/blob/main/DCMB/dcmb.c#L3
  * 
- * @returns PCHAR base name
+ * @param[in] FullName Full file path.
+ *
+ * @return PCHAR Pointer to the base name within the string.
  */
 PCHAR 
 GetBaseNameFromFullPath(_In_ PCHAR FullName) 
@@ -143,11 +153,15 @@ GetBaseNameFromFullPath(_In_ PCHAR FullName)
     return NULL;
 }
 
-/**
- * TODO: description, parameters
+/*
+ * @brief Creates a security descriptor with full access to all users.
+ *
+ * @param[out] Sd Pointer to the created security descriptor.
+ *
+ * @return NTSTATUS STATUS_SUCCESS if successful, otherwise an error code.
  */
 NTSTATUS
-BeCreateSecurityDescriptor(_Out_ PSECURITY_DESCRIPTOR* sd)
+BeCreateSecurityDescriptor(_Out_ PSECURITY_DESCRIPTOR* Sd)
 {
     NTSTATUS NtStatus = STATUS_SUCCESS;
 
@@ -180,27 +194,27 @@ BeCreateSecurityDescriptor(_Out_ PSECURITY_DESCRIPTOR* sd)
     */
 
     // Create the security descriptor
-    *sd = (PSECURITY_DESCRIPTOR)ExAllocatePoolWithTag(NonPagedPool, SECURITY_DESCRIPTOR_MIN_LENGTH, DRIVER_TAG); // TODO: FREE
-    if (!*sd)
+    *Sd = (PSECURITY_DESCRIPTOR)ExAllocatePoolWithTag(NonPagedPool, SECURITY_DESCRIPTOR_MIN_LENGTH, DRIVER_TAG); // TODO: FREE
+    if (!*Sd)
     {
-        ExFreePool(*sd);
+        ExFreePool(*Sd);
         // ExFreePool(Dacl);
         return STATUS_UNSUCCESSFUL;
     }
 
-    NtStatus = RtlCreateSecurityDescriptor(*sd, SECURITY_DESCRIPTOR_REVISION);
+    NtStatus = RtlCreateSecurityDescriptor(*Sd, SECURITY_DESCRIPTOR_REVISION);
     if (!NT_SUCCESS(NtStatus))
     {
-        ExFreePool(sd);
+        ExFreePool(Sd);
         // ExFreePool(Dacl);
         return NtStatus;
     }
 
-    NtStatus = RtlSetDaclSecurityDescriptor(*sd, TRUE, 0, FALSE); // 0 = Dacl
+    NtStatus = RtlSetDaclSecurityDescriptor(*Sd, TRUE, 0, FALSE); // 0 = Dacl
     if (!NT_SUCCESS(NtStatus))
     {
         LOG_MSG("Failed to set DACL in security descriptor\n");
-        ExFreePool(*sd);
+        ExFreePool(*Sd);
         // ExFreePool(Dacl);
         return NtStatus;
     }
@@ -208,13 +222,13 @@ BeCreateSecurityDescriptor(_Out_ PSECURITY_DESCRIPTOR* sd)
     return NtStatus;
 }
 
-/**
- * @brief Sets a named event to a state
- * 
- * @param[in] hEvent Handle to the event
- * @param[in] set signaled state to set
- * 
- * @returns NTSTATUS status code
+/*
+ * @brief Sets a named event to a specified state.
+ *
+ * @param[in] hEvent Handle to the event.
+ * @param[in] Set TRUE to signal the event, FALSE to reset it.
+ *
+ * @return NTSTATUS STATUS_SUCCESS if successful, otherwise an error code.
  */
 NTSTATUS
 BeSetNamedEvent(
@@ -243,11 +257,12 @@ BeSetNamedEvent(
     return Status;
 }
 
-/**
- * @brief Wait for an event to be set
+/*
+ * @brief Waits for an event to be signaled.
  *
- * @param[in] hEvent Handle to the event
- * @returns NTSTATUS status code
+ * @param[in] hEvent Handle to the event.
+ *
+ * @return NTSTATUS STATUS_SUCCESS if successful, otherwise an error code.
  */
 NTSTATUS 
 BeWaitForEvent(_In_ HANDLE hEvent)
@@ -257,13 +272,14 @@ BeWaitForEvent(_In_ HANDLE hEvent)
     return Status;
 }
 
-/**
- * @brief Creates a named event
+/*
+ * @brief Creates a named event with a specified initial state.
  *
- * @param[out] PhEvent Pointer to a handle to the event
- * @param[in]  EventName name for the event
- * @param[in]  InitialSignaledState the initial state for the event
- * @returns NTSTATUS status code
+ * @param[out] PhEvent Pointer to a handle for the created event.
+ * @param[in] EventName Name of the event.
+ * @param[in] InitialSignaledState Initial state of the event (signaled or non-signaled).
+ *
+ * @return NTSTATUS STATUS_SUCCESS if successful, otherwise an error code.
  */
 NTSTATUS 
 BeCreateNamedEvent(

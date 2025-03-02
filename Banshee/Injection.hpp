@@ -28,7 +28,7 @@ UCHAR ZWPATTERN[30] = {
  * @param[out] Ssn      A pointer to a USHORT that will receive the resolved
  *                      system service number (SSN) if the function is found.
  *
- * @return STATUS_SUCCESS if the SSN was successfully retrieved.
+ * @return NTSTATUS STATUS_SUCCESS if the SSN was successfully retrieved.
  *         An appropriate NTSTATUS error code if the lookup fails.
  */
 NTSTATUS
@@ -121,7 +121,7 @@ CLEANUP:
  * @param[in] Name Pointer to a null-terminated ANSI string representing the name
  *                 of the NTAPI function (e.g., "NtCreateThreadEx").
  *
- * @return A pointer to the resolved Zw function address if successful.
+ * @return PVOID A pointer to the resolved Zw function address if successful.
  *         Returns NULL if the function name is invalid or the resolution fails.
  */
 PVOID

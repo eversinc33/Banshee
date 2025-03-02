@@ -8,12 +8,12 @@
 #include "Globals.hpp"
 #include "WinTypes.hpp"
 
-/**
- * Finds the filename from the given full path.
+/*
+ * @brief Retrieves the filename from a given full path.
  *
  * @param[in] FullPath Pointer to a wide character string representing the full path.
- * @return Pointer to the character following the last backslash in the path if found,
- *         otherwise returns the original pointer (assuming fullPath points to the filename).
+ *
+ * @return PWCH Pointer to the character following the last backslash in the path.
  */
 PWCH
 BeGetFilenameFromPath(_In_ PWCH FullPath)
@@ -48,11 +48,12 @@ BeGetFilenameFromPath(_In_ PWCH FullPath)
     }
 }
 
-/**
- * Retrieves the driver object of the NTFS driver.
+/*
+ * @brief Retrieves the driver object of the NTFS driver.
  *
  * @param[out] NtfsDriverObject Pointer to a variable to receive the pointer to the NTFS driver object.
- * @return STATUS_SUCCESS if successful, otherwise returns an appropriate NTSTATUS error code.
+ *
+ * @return NTSTATUS STATUS_SUCCESS if successful, otherwise an error code.
  */
 NTSTATUS
 BeGetNtfsDriverObject(_Out_ PDRIVER_OBJECT* NtfsDriverObject)
@@ -72,18 +73,14 @@ BeGetNtfsDriverObject(_Out_ PDRIVER_OBJECT* NtfsDriverObject)
     return STATUS_SUCCESS;
 }
 
-/**
+/*
  * @brief Reads the contents of a file into a dynamically allocated buffer.
  *
- * @param[in]  FilePath  A pointer to a null-terminated wide string containing
- *                       the full path to the file.
- * @param[out] OutBuffer A pointer to a memory location that will receive
- *                       the allocated buffer containing the file data.
- * @param[out] Outsize   A pointer to a variable that will receive the size
- *                       of the allocated buffer.
+ * @param[in]  FilePath  Pointer to a wide string containing the full path to the file.
+ * @param[out] OutBuffer Pointer to a memory location that will receive the allocated buffer.
+ * @param[out] Outsize   Pointer to a variable that will receive the size of the allocated buffer.
  *
- * @return STATUS_SUCCESS if the file was successfully read.
- *         An appropriate NTSTATUS error code if the operation fails.
+ * @return NTSTATUS STATUS_SUCCESS if the file was successfully read, otherwise an error code.
  */
 NTSTATUS
 BeReadFile(

