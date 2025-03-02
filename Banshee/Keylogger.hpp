@@ -382,10 +382,10 @@ BeUpdateKeyStateMap(
         //
         // If key is down but wasnt previously, set it in the recent state as down
         //
-		if (IS_KEY_DOWN(KeyStateMap, Vk) && !(IS_KEY_DOWN(KeyPreviousStateMap, Vk)))
-		{
-			SET_KEY_DOWN(KeyRecentStateMap, Vk, TRUE);
-		}
+        if (IS_KEY_DOWN(KeyStateMap, Vk) && !(IS_KEY_DOWN(KeyPreviousStateMap, Vk)))
+        {
+	        SET_KEY_DOWN(KeyRecentStateMap, Vk, TRUE);
+        }
 	}
 }
 
