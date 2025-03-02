@@ -286,8 +286,7 @@ BeEmptyCreateProcessNotifyRoutine(
 	_In_ HANDLE  ParentId,
 	_In_ HANDLE  ProcessId,
 	_In_ BOOLEAN Create
-)
-{
+) {
 	UNREFERENCED_PARAMETER(ParentId);
 	UNREFERENCED_PARAMETER(ProcessId);
 	UNREFERENCED_PARAMETER(Create);
@@ -303,8 +302,7 @@ BeEmptyCreateThreadNotifyRoutine(
 	_In_ HANDLE  ProcessId,
 	_In_ HANDLE  ThreadId,
 	_In_ BOOLEAN Create
-)
-{
+) {
 	UNREFERENCED_PARAMETER(ProcessId);
 	UNREFERENCED_PARAMETER(ThreadId);
 	UNREFERENCED_PARAMETER(Create);
