@@ -1,0 +1,2 @@
+*.hpp text diff=csharp whitespace=fix 
+*.cpp text diff=html whitespace=fix 
