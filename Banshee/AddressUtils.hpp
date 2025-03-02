@@ -101,7 +101,7 @@ BeGetBaseAddrOfModule(_In_ PUNICODE_STRING ModuleName)
     //
     // Acquire the resource in shared mode
     //
-    ExAcquireResourceExclusiveLite(PsLoadedModuleResource, TRUE);
+    ExAcquireResourceSharedLite(PsLoadedModuleResource, TRUE);
 
     __try {
         PKLDR_DATA_TABLE_ENTRY Entry = (PKLDR_DATA_TABLE_ENTRY)PsLoadedModuleList;
