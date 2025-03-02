@@ -368,13 +368,13 @@ BeUpdateKeyStateMap(
 
 	SIZE_T Size = 0;
 	BeGlobals::pMmCopyVirtualMemory(
-		BeGetEprocessByPid(HandleToULong(ProcId)),
+        BeGetEprocessByPid(HandleToULong(ProcId)),
         GafAsyncKeyStateAddr,
-		PsGetCurrentProcess(), 
-		&KeyStateMap,
-		sizeof(UINT8[64]),
-		KernelMode,
-		&Size
+        PsGetCurrentProcess(), 
+        &KeyStateMap,
+        sizeof(UINT8[64]),
+        KernelMode,
+        &Size
 	);
 
 	for (auto Vk = 0u; Vk < 256; ++Vk) 
