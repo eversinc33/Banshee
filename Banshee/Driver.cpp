@@ -35,11 +35,15 @@ BeUnload()
     KeWaitForSingleObject(&BeGlobals::hKeyLoggerTerminationEvent, Executive, KernelMode, FALSE, NULL);
     KeWaitForSingleObject(&BeGlobals::hMainLoopTerminationEvent, Executive, KernelMode, FALSE, NULL);
     
+    //
     // Close thread handles
+    //
     ZwClose(hKeyloggerThread);
     ZwClose(hMainLoop);
 
+    //
     // Restore kernel callbacks
+    //
     {
         {
             AutoLock<FastMutex> _lock(BeGlobals::CallbackLock);
@@ -70,7 +74,9 @@ BeUnload()
         }
     }
 
+    //
     // Unhook if NTFS was hooked
+    //
 #if DENY_DRIVER_FILE_ACCESS
     if (BeGlobals::OriginalNTFS_IRP_MJ_CREATE_function != NULL)
     {
@@ -85,14 +91,20 @@ BeUnload()
     }
 #endif
 
+    //
     // Delete shared memory
+    //
     BeCloseSharedMemory(BeGlobals::hSharedMemory, BeGlobals::pSharedMemory);
 
+    //
     // Close event handles
+    //
     BeGlobals::pZwClose(BeGlobals::commandEvent);
     BeGlobals::pZwClose(BeGlobals::answerEvent);
 
+    //
     // Deref objects
+    //
     ObDereferenceObject(BeGlobals::winLogonProc);
 
     LOG_MSG("Byebye!\n");
