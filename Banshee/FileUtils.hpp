@@ -66,7 +66,7 @@ BeGetNtfsDriverObject(_Out_ PDRIVER_OBJECT* NtfsDriverObject)
     //
     // Get a pointer to the driver object representing the NTFS driver
     //
-    NTSTATUS Status = BeGlobals::pObReferenceObjectByName(&NtfsDriverName, OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType, KernelMode, NULL, (PVOID)NtfsDriverObject);
+    NTSTATUS Status = BeGlobals::pObReferenceObjectByName(&NtfsDriverName, OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType, KernelMode, NULL, (PVOID*)NtfsDriverObject);
     if (!NT_SUCCESS(Status))
         return Status;
 

@@ -17,7 +17,7 @@ PVOID __cdecl operator new[](SIZE_T size, POOL_TYPE Pool)
     return ExAllocatePoolWithTag(Pool, size, DRIVER_TAG);
 }
 
-//	Placement new
+//    Placement new
 inline PVOID operator new(SIZE_T, PVOID where)
 {
     return where;

