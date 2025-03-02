@@ -24,7 +24,7 @@ BeCreateSharedMemory()
     LARGE_INTEGER        SectionSize = { 0 };
     KAPC_STATE           Apc         = { 0 };
     NTSTATUS             Status      = STATUS_UNSUCCESSFUL;
-    SIZE_T	             ulViewSize  = sizeof(BANSHEE_PAYLOAD);
+    SIZE_T               ulViewSize  = sizeof(BANSHEE_PAYLOAD);
 
     RtlInitUnicodeString(&SectionName, L"\\BaseNamedObjects\\Global\\BeShared");
 
