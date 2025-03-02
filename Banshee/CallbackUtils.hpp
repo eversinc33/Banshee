@@ -12,14 +12,14 @@
 VOID
 BeEnumerateDrivers()
 {
-    PKLDR_DATA_TABLE_ENTRY Entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
-    PKLDR_DATA_TABLE_ENTRY First = Entry;
+	PKLDR_DATA_TABLE_ENTRY Entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
+	PKLDR_DATA_TABLE_ENTRY First = Entry;
 
-    while ((PKLDR_DATA_TABLE_ENTRY)Entry->InLoadOrderLinks.Flink != First)
-    {
+	while ((PKLDR_DATA_TABLE_ENTRY)Entry->InLoadOrderLinks.Flink != First)
+	{
 		LOG_MSG("Driver: 0x%llx :: %ls\r\n", Entry->DllBase, Entry->BaseDllName.Buffer);
 		Entry = (PKLDR_DATA_TABLE_ENTRY)Entry->InLoadOrderLinks.Flink;
-    }
+	}
 }
 
 /*
@@ -42,10 +42,10 @@ BeGetDriverForAddress(_In_ UINT64 Address)
 	for (auto I = 0; I < 512; ++I)
 	{
 		UINT64 StartAddr = UINT64(Entry->DllBase);
-		UINT64 EndAddr   = StartAddr + UINT64(Entry->SizeOfImage);
-		
+		UINT64 EndAddr = StartAddr + UINT64(Entry->SizeOfImage);
+
 		LOG_MSG("Looking for: %ls 0x%llx 0x%llx\r\n", Entry->BaseDllName.Buffer, StartAddr, EndAddr);
-		
+
 		if (Address >= StartAddr && Address < EndAddr)
 		{
 			return (PKLDR_DATA_TABLE_ENTRY)Entry;
@@ -93,7 +93,7 @@ BeGetKernelCallbackArrayAddr(_In_ CALLBACK_TYPE Type)
 	if (Type == CreateProcessNotifyRoutine || Type == CreateThreadNotifyRoutine)
 	{
 		//
-		// Resolve PsSetCreateXYZNotifyRoutine 
+		// Resolve PsSetCreateXYZNotifyRoutine
 		//
 		CallbackRoutineAddr = (DWORD64)BeGetSystemRoutineAddress("ntoskrnl.exe", CallbackRoutineName);
 		if (!CallbackRoutineAddr)
@@ -116,7 +116,7 @@ BeGetKernelCallbackArrayAddr(_In_ CALLBACK_TYPE Type)
 				//
 				LOG_MSG("Offset: 0x%llx\r\n", *(PUINT32*)(CallbackRoutineAddr + I + 1));
 				UINT32 Offset = *(PUINT32)(CallbackRoutineAddr + I + 1);
-				
+
 				//
 				// Add offset to addr of next instruction to get psp address
 				//
@@ -146,7 +146,7 @@ BeGetKernelCallbackArrayAddr(_In_ CALLBACK_TYPE Type)
 				// Param for LEA is the address of the callback array
 				//
 				UINT32 Offset = *(PUINT32)(PspCallbackRoutineAddr + I + 3);
-				
+
 				//
 				// Add ofset to next instruction to get callback array addr
 				//
@@ -320,7 +320,7 @@ BeEmptyCreateThreadNotifyRoutine(
  */
 NTSTATUS
 BeReplaceKernelCallbacksOfDriver(
-	_In_ PWCH TargetDriverModuleName, 
+	_In_ PWCH TargetDriverModuleName,
 	_In_ CALLBACK_TYPE Type
 ) {
 	LOG_MSG("Target: %S\n", TargetDriverModuleName);
@@ -384,10 +384,10 @@ BeReplaceKernelCallbacksOfDriver(
 			// Print info
 			//
 			LOG_MSG("Replacing callback with empty callback: %ls, 0x%llx + 0x%llx\r\n", Driver->BaseDllName.Buffer, (UINT64)Driver->DllBase, Offset);
-			
+
 			auto AddrOfCallbackFunction = (ULONG64)CurrCallbackBlockAddr + sizeof(ULONG_PTR);
 
-			{ 
+			{
 				AutoLock<FastMutex> _lock(BeGlobals::CallbackLock);
 				LONG64 OldCallbackAddress;
 
@@ -415,7 +415,7 @@ BeReplaceKernelCallbacksOfDriver(
 				BeGlobals::BeCallbacksToRestore.callbackToRestore[BeGlobals::BeCallbacksToRestore.length] = OldCallbackAddress;
 				BeGlobals::BeCallbacksToRestore.callbackType[BeGlobals::BeCallbacksToRestore.length] = Type;
 				BeGlobals::BeCallbacksToRestore.length++;
-			} 
+			}
 		}
 	}
 
