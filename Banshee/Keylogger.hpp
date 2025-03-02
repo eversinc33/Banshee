@@ -413,7 +413,7 @@ PVOID
 BeGetGafAsyncKeyStateAddress()
 {
     //
-	// TODO FIXME: THIS IS WINDOWS <= 10 ONLY
+    // TODO FIXME: THIS IS WINDOWS <= 10 ONLY
     //
 
     KAPC_STATE Apc = { 0 };
