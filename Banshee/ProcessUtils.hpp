@@ -14,41 +14,43 @@
  * @returns HANDLE Process ID of the matching process, or NULL if not found.
  */
 HANDLE 
-BeGetPidFromProcessName(_In_ CONST UNICODE_STRING& ProcessName)
+BeGetPidFromProcessName(
+    _In_ CONST UNICODE_STRING& processName
+)
 {
-    NTSTATUS Status     = STATUS_SUCCESS;
-    ULONG    BufferSize = 0;
-    PVOID    Buffer     = NULL;
+    NTSTATUS status     = STATUS_SUCCESS;
+    ULONG    bufferSize = 0;
+    PVOID    buffer     = NULL;
 
     PSYSTEM_PROCESS_INFORMATION pCurrent = NULL;
 
-    Status = BeGlobals::pZwQuerySystemInformation(SystemProcessInformation, Buffer, BufferSize, &BufferSize);
-    if (Status == STATUS_INFO_LENGTH_MISMATCH)
+    status = BeGlobals::pZwQuerySystemInformation(SystemProcessInformation, buffer, bufferSize, &bufferSize);
+    if (status == STATUS_INFO_LENGTH_MISMATCH)
     {
-        Buffer = ExAllocatePool2(POOL_FLAG_NON_PAGED, BufferSize, DRIVER_TAG);
-        if (Buffer == NULL)
+        buffer = ExAllocatePool2(POOL_FLAG_NON_PAGED, bufferSize, DRIVER_TAG);
+        if (buffer == NULL)
         {
             return pCurrent;
         }
         else
         {
-            Status = BeGlobals::pZwQuerySystemInformation(SystemProcessInformation, Buffer, BufferSize, &BufferSize);
-            if (!NT_SUCCESS(Status))
+            status = BeGlobals::pZwQuerySystemInformation(SystemProcessInformation, buffer, bufferSize, &bufferSize);
+            if (!NT_SUCCESS(status))
             {
-                ExFreePoolWithTag(Buffer, DRIVER_TAG);
+                ExFreePoolWithTag(buffer, DRIVER_TAG);
                 return pCurrent;
             }
         }
     }
 
-    pCurrent = (PSYSTEM_PROCESS_INFORMATION)Buffer;
+    pCurrent = (PSYSTEM_PROCESS_INFORMATION)buffer;
     while (pCurrent) 
     {
         if (pCurrent->ImageName.Buffer != NULL)
         {
-            if (RtlCompareUnicodeString(&(pCurrent->ImageName), &ProcessName, TRUE) == 0)
+            if (RtlCompareUnicodeString(&(pCurrent->ImageName), &processName, TRUE) == 0)
             {
-                ExFreePoolWithTag(Buffer, DRIVER_TAG);
+                ExFreePoolWithTag(buffer, DRIVER_TAG);
                 return pCurrent->ProcessId;
             }
         }
@@ -72,14 +74,16 @@ BeGetPidFromProcessName(_In_ CONST UNICODE_STRING& ProcessName)
  * @returns PEPROCESS Pointer to the EPROCESS object, or NULL if not found.
  */
 PEPROCESS
-BeGetEprocessByPid(_In_ ULONG Pid)
+BeGetEprocessByPid(
+    _In_ ULONG pid
+)
 {
-    PEPROCESS Process;
-    if (PsLookupProcessByProcessId(ULongToHandle(Pid), &Process) != 0)
+    PEPROCESS pProcess;
+    if (PsLookupProcessByProcessId(ULongToHandle(pid), &pProcess) != 0)
     {
-        LOG_MSG("PID %i not found \r\n", (ULONG)Pid);
+        LOG_MSG("PID %i not found \r\n", (ULONG)pid);
         return NULL;
     }
 
-    return Process;
+    return pProcess;
 }

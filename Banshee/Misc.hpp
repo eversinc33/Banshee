@@ -18,9 +18,11 @@
  * @return BOOLEAN True if null or only null characters, otherwise false.
  */
 BOOLEAN
-BeIsStringNull(_In_ PWCHAR PWchar)
+BeIsStringNull(
+    _In_ PWCHAR pWchar
+)
 {
-    return (PWchar == NULL || *PWchar == '\0');
+    return (pWchar == NULL || *pWchar == '\0');
 }
 
 /*
@@ -32,20 +34,23 @@ BeIsStringNull(_In_ PWCHAR PWchar)
  * @return BOOLEAN True if null-terminated, otherwise false.
  */
 BOOLEAN
-BeIsStringTerminated(_In_ PWCHAR Array, _In_ ULONG ArrayLength)
+BeIsStringTerminated(
+    _In_ PWCHAR array, 
+    _In_ ULONG arrayLength
+)
 {
     BOOLEAN bStringIsTerminated = FALSE;
-    USHORT uiIndex = 0;
+    USHORT index = 0;
 
-    while (uiIndex < ArrayLength && bStringIsTerminated == FALSE)
+    while (index < arrayLength && bStringIsTerminated == FALSE)
     {
-        if (Array[uiIndex] == L'\0')
+        if (array[index] == L'\0')
         {
             bStringIsTerminated = TRUE;
         }
         else
         {
-            uiIndex++;
+            index++;
         }
     }
     return bStringIsTerminated;
@@ -60,26 +65,29 @@ BeIsStringTerminated(_In_ PWCHAR Array, _In_ ULONG ArrayLength)
  * @return NTSTATUS STATUS_SUCCESS if valid, otherwise an error code.
  */
 NTSTATUS
-BeCheckStringIsAlignedNotEmptyAndTerminated(_In_ PWCHAR TargetString, _In_ ULONG Size)
+BeCheckStringIsAlignedNotEmptyAndTerminated(
+    _In_ PWCHAR targetString, 
+    _In_ ULONG size
+)
 {
     //
     // Check alignment
     //
-    if (Size % sizeof(WCHAR) != 0)
+    if (size % sizeof(WCHAR) != 0)
     {
         LOG_MSG("Invalid alignment \r\n");
         return STATUS_INVALID_BUFFER_SIZE;
     }
 
-    if (!TargetString)
+    if (!targetString)
     {
         LOG_MSG("Empty buffer \r\n");
         return STATUS_INVALID_PARAMETER;
     }
 
-    LOG_MSG("String received: %ws \r\n", TargetString);
+    LOG_MSG("String received: %ws \r\n", targetString);
 
-    if (BeIsStringTerminated(TargetString, Size) == FALSE)
+    if (BeIsStringTerminated(targetString, size) == FALSE)
     {
         LOG_MSG("Not null terminated! \r\n");
         return STATUS_UNSUCCESSFUL;
@@ -98,31 +106,31 @@ BeCheckStringIsAlignedNotEmptyAndTerminated(_In_ PWCHAR TargetString, _In_ ULONG
  */
 PWCHAR
 StrStrIW(
-    _In_ CONST PWCHAR String, 
-    _In_ CONST PWCHAR Pattern
+    _In_ CONST PWCHAR string, 
+    _In_ CONST PWCHAR pattern
 ) {
-      PWCHAR Pptr, Sptr, Start;
+      PWCHAR pptr, sptr, start;
 
-      for (Start = (PWCHAR)String; *Start != NULL; ++Start)
+      for (start = (PWCHAR)string; *start != NULL; ++start)
       {
-            while (((*Start != NULL) && (RtlUpcaseUnicodeChar(*Start) != RtlUpcaseUnicodeChar(*Pattern))))
+            while (((*start != NULL) && (RtlUpcaseUnicodeChar(*start) != RtlUpcaseUnicodeChar(*pattern))))
             {
-                ++Start;
+                ++start;
             }
 
-            if (NULL == *Start)
+            if (NULL == *start)
                   return NULL;
 
-            Pptr = (PWCHAR)Pattern;
-            Sptr = (PWCHAR)Start;
+            pptr = (PWCHAR)pattern;
+            sptr = (PWCHAR)start;
 
-            while (RtlUpcaseUnicodeChar(*Sptr) == RtlUpcaseUnicodeChar(*Sptr))
+            while (RtlUpcaseUnicodeChar(*sptr) == RtlUpcaseUnicodeChar(*sptr))
             {
-                  Sptr++;
-                  Pptr++;
+                  sptr++;
+                  pptr++;
 
-                  if (NULL == *Pptr)
-                        return (Start);
+                  if (NULL == *pptr)
+                        return (start);
             }
       }
 
@@ -138,15 +146,17 @@ StrStrIW(
  * @return PCHAR Pointer to the base name within the string.
  */
 PCHAR 
-GetBaseNameFromFullPath(_In_ PCHAR FullName) 
+GetBaseNameFromFullPath(
+    _In_ PCHAR fullName
+) 
 {
-    SIZE_T FullNameLength = strlen(FullName);
+    SIZE_T fullNameLength = strlen(fullName);
 
-    for (SIZE_T I = FullNameLength; I > 0; I--) 
+    for (SIZE_T I = fullNameLength; I > 0; I--) 
     {
-        if (*(FullName + I) == '\\')
+        if (*(fullName + I) == '\\')
         {
-            return FullName + I + 1;
+            return fullName + I + 1;
         }
     }
 
@@ -161,9 +171,11 @@ GetBaseNameFromFullPath(_In_ PCHAR FullName)
  * @return NTSTATUS STATUS_SUCCESS if successful, otherwise an error code.
  */
 NTSTATUS
-BeCreateSecurityDescriptor(_Out_ PSECURITY_DESCRIPTOR* Sd)
+BeCreateSecurityDescriptor(
+    _Out_ PSECURITY_DESCRIPTOR* sd
+)
 {
-    NTSTATUS NtStatus = STATUS_SUCCESS;
+    NTSTATUS status = STATUS_SUCCESS;
 
     // Create the DACL
     /*
@@ -194,32 +206,32 @@ BeCreateSecurityDescriptor(_Out_ PSECURITY_DESCRIPTOR* Sd)
     */
 
     // Create the security descriptor
-    *Sd = (PSECURITY_DESCRIPTOR)ExAllocatePoolWithTag(NonPagedPool, SECURITY_DESCRIPTOR_MIN_LENGTH, DRIVER_TAG); // TODO: FREE
-    if (!*Sd)
+    *sd = (PSECURITY_DESCRIPTOR)ExAllocatePoolWithTag(NonPagedPool, SECURITY_DESCRIPTOR_MIN_LENGTH, DRIVER_TAG); // TODO: FREE
+    if (!*sd)
     {
-        ExFreePool(*Sd);
+        ExFreePool(*sd);
         // ExFreePool(Dacl);
         return STATUS_UNSUCCESSFUL;
     }
 
-    NtStatus = RtlCreateSecurityDescriptor(*Sd, SECURITY_DESCRIPTOR_REVISION);
-    if (!NT_SUCCESS(NtStatus))
+    status = RtlCreateSecurityDescriptor(*sd, SECURITY_DESCRIPTOR_REVISION);
+    if (!NT_SUCCESS(status))
     {
-        ExFreePool(Sd);
+        ExFreePool(sd);
         // ExFreePool(Dacl);
-        return NtStatus;
+        return status;
     }
 
-    NtStatus = RtlSetDaclSecurityDescriptor(*Sd, TRUE, 0, FALSE); // 0 = Dacl
-    if (!NT_SUCCESS(NtStatus))
+    status = RtlSetDaclSecurityDescriptor(*sd, TRUE, 0, FALSE); // 0 = Dacl
+    if (!NT_SUCCESS(status))
     {
         LOG_MSG("Failed to set DACL in security descriptor\n");
-        ExFreePool(*Sd);
+        ExFreePool(*sd);
         // ExFreePool(Dacl);
-        return NtStatus;
+        return status;
     }
 
-    return NtStatus;
+    return status;
 }
 
 /*
@@ -233,28 +245,28 @@ BeCreateSecurityDescriptor(_Out_ PSECURITY_DESCRIPTOR* Sd)
 NTSTATUS
 BeSetNamedEvent(
     _In_ HANDLE  hEvent, 
-    _In_ BOOLEAN Set
+    _In_ BOOLEAN set
 ) {
-    NTSTATUS Status = STATUS_SUCCESS;
+    NTSTATUS status = STATUS_SUCCESS;
 
-    if (Set)
+    if (set)
     {
-        Status = BeGlobals::pZwSetEvent(hEvent, NULL);
-        if (!NT_SUCCESS(Status))
+        status = BeGlobals::pZwSetEvent(hEvent, NULL);
+        if (!NT_SUCCESS(status))
         {
-            LOG_MSG("Failed to set named event: 0x%X\n", Status);
+            LOG_MSG("Failed to set named event: 0x%X\n", status);
         }
     }
     else
     {
         BeGlobals::pZwResetEvent(hEvent, NULL);
-        if (!NT_SUCCESS(Status))
+        if (!NT_SUCCESS(status))
         {
-            LOG_MSG("Failed to reset named event: 0x%X\n", Status);
+            LOG_MSG("Failed to reset named event: 0x%X\n", status);
         }
     }
 
-    return Status;
+    return status;
 }
 
 /*
@@ -265,7 +277,9 @@ BeSetNamedEvent(
  * @return NTSTATUS STATUS_SUCCESS if successful, otherwise an error code.
  */
 NTSTATUS 
-BeWaitForEvent(_In_ HANDLE hEvent)
+BeWaitForEvent(
+    _In_ HANDLE hEvent
+)
 {
     NTSTATUS Status = STATUS_SUCCESS;
     Status = ZwWaitForSingleObject(hEvent, FALSE, NULL);
@@ -283,23 +297,23 @@ BeWaitForEvent(_In_ HANDLE hEvent)
  */
 NTSTATUS 
 BeCreateNamedEvent(
-    _Out_ PHANDLE         PhEvent, 
-    _In_  PUNICODE_STRING EventName, 
-    _In_  BOOLEAN         InitialSignaledState
+    _Out_ PHANDLE         phEvent, 
+    _In_  PUNICODE_STRING eventName, 
+    _In_  BOOLEAN         initialSignaledState
 ) {
     //
     // Add permissions to all users to our event, so that a lowpriv agent can still access the rootkit
     //
-    PSECURITY_DESCRIPTOR Sd  = { 0 };
-    OBJECT_ATTRIBUTES    Obj = { 0 };
+    PSECURITY_DESCRIPTOR sd = { 0 };
+    OBJECT_ATTRIBUTES    oa = { 0 };
 
-    BeCreateSecurityDescriptor(&Sd);
-    InitializeObjectAttributes(&Obj, EventName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, Sd);
+    BeCreateSecurityDescriptor(&sd);
+    InitializeObjectAttributes(&oa, eventName, OBJ_CASE_INSENSITIVE | OBJ_PERMANENT | OBJ_KERNEL_HANDLE | OBJ_OPENIF, NULL, sd);
 
-    NTSTATUS Status = BeGlobals::pZwCreateEvent(PhEvent, EVENT_ALL_ACCESS, &Obj, NotificationEvent, InitialSignaledState);
+    NTSTATUS Status = BeGlobals::pZwCreateEvent(phEvent, EVENT_ALL_ACCESS, &oa, NotificationEvent, initialSignaledState);
     if (!NT_SUCCESS(Status))
         DbgPrint("Failed to create named event: 0x%X\n", Status);
 
-    ExFreePool(Sd);
+    ExFreePool(sd);
     return Status;
 }

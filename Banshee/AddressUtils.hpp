@@ -16,18 +16,18 @@
 ULONG
 BeGetAccessTokenOffset()
 {
-    RTL_OSVERSIONINFOW OsVersion = { sizeof(OsVersion) };
-    RtlGetVersion(&OsVersion);
+    RTL_OSVERSIONINFOW osVersion = { sizeof(osVersion) };
+    RtlGetVersion(&osVersion);
 
-    LOG_MSG("Running on %i\n", OsVersion.dwBuildNumber);
+    LOG_MSG("Running on %i\n", osVersion.dwBuildNumber);
 
-    ULONG TokenOffset = 0;
+    ULONG tokenOffset = 0;
 
-    switch (OsVersion.dwBuildNumber)
+    switch (osVersion.dwBuildNumber)
     {
     case WIN_1903:
     case WIN_1909:
-        TokenOffset = 0x360;
+        tokenOffset = 0x360;
         break;
     case WIN_1507:
     case WIN_1511:
@@ -36,15 +36,15 @@ BeGetAccessTokenOffset()
     case WIN_1709:
     case WIN_1803:
     case WIN_1809:
-        TokenOffset = 0x358;
+        tokenOffset = 0x358;
         break;
     default:
-        TokenOffset = 0x4b8;
+        tokenOffset = 0x4b8;
         break;
     }
 
-    LOG_MSG("Token offset: %i", TokenOffset);
-    return TokenOffset;
+    LOG_MSG("Token offset: %i", tokenOffset);
+    return tokenOffset;
 }
 
 /**
@@ -56,34 +56,34 @@ BeGetAccessTokenOffset()
 ULONG
 BeGetProcessLinkedListOffset()
 {
-    RTL_OSVERSIONINFOW OsVersion = { sizeof(OsVersion) };
-    RtlGetVersion(&OsVersion);
+    RTL_OSVERSIONINFOW osVersion = { sizeof(osVersion) };
+    RtlGetVersion(&osVersion);
 
-    LOG_MSG("Running on %i\n", OsVersion.dwBuildNumber);
+    LOG_MSG("Running on %i\n", osVersion.dwBuildNumber);
 
-    ULONG ActiveProcessLinks = 0;
+    ULONG activeProcessLinks = 0;
 
-    switch (OsVersion.dwBuildNumber)
+    switch (osVersion.dwBuildNumber)
     {
     case WIN_1507:
     case WIN_1511:
     case WIN_1607:
     case WIN_1903:
     case WIN_1909:
-        ActiveProcessLinks = 0x2f0;
+        activeProcessLinks = 0x2f0;
         break;
     case WIN_1703:
     case WIN_1709:
     case WIN_1803:
     case WIN_1809:
-        ActiveProcessLinks = 0x2e8;
+        activeProcessLinks = 0x2e8;
         break;
     default:
-        ActiveProcessLinks = 0x448;
+        activeProcessLinks = 0x448;
         break;
     }
 
-    return ActiveProcessLinks;
+    return activeProcessLinks;
 }
 
 /*
@@ -94,9 +94,9 @@ BeGetProcessLinkedListOffset()
  * @returns PVOID Base address of the module if found, or NULL if not.
  */
 PVOID
-BeGetBaseAddrOfModule(_In_ PUNICODE_STRING ModuleName) 
+BeGetBaseAddrOfModule(_In_ PUNICODE_STRING moduleName) 
 {
-    PVOID Address = NULL;
+    PVOID address = NULL;
 
     //
     // Acquire the resource in shared mode
@@ -104,29 +104,30 @@ BeGetBaseAddrOfModule(_In_ PUNICODE_STRING ModuleName)
     ExAcquireResourceSharedLite(PsLoadedModuleResource, TRUE);
 
     __try {
-        PKLDR_DATA_TABLE_ENTRY Entry = (PKLDR_DATA_TABLE_ENTRY)PsLoadedModuleList;
-        PKLDR_DATA_TABLE_ENTRY First = Entry;
+        PKLDR_DATA_TABLE_ENTRY entry = (PKLDR_DATA_TABLE_ENTRY)PsLoadedModuleList;
+        PKLDR_DATA_TABLE_ENTRY first = entry;
 
-        while ((PKLDR_DATA_TABLE_ENTRY)Entry->InLoadOrderLinks.Flink != First)
+        while ((PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink != first)
         {
-            if (RtlCompareUnicodeString(&Entry->BaseDllName, ModuleName, TRUE) == 0)
+            if (RtlCompareUnicodeString(&entry->BaseDllName, moduleName, TRUE) == 0)
             {
-                Address = Entry->DllBase;
+                address = entry->DllBase;
                 break;
             }
 
-            Entry = (PKLDR_DATA_TABLE_ENTRY)Entry->InLoadOrderLinks.Flink;
+            entry = (PKLDR_DATA_TABLE_ENTRY)entry->InLoadOrderLinks.Flink;
         }
 
     }
-    __finally {
+    __finally 
+    {
         //
         // Ensure the lock is always released
         //
         ExReleaseResourceLite(PsLoadedModuleResource);
     }
 
-    return Address;
+    return address;
 }
 
 /*
@@ -139,21 +140,25 @@ BeGetBaseAddrOfModule(_In_ PUNICODE_STRING ModuleName)
  */
 PVOID
 BeGetSystemRoutineAddress(
-    _In_ CONST PCHAR ModuleName,
-    _In_ CONST PCHAR FunctionToResolve
-) {
-    KAPC_STATE Apc            = { 0 };
-    PVOID      ModuleBase     = NULL;
-    BOOLEAN    InWin32kModule = FALSE;
+    _In_ CONST PCHAR moduleName,
+    _In_ CONST PCHAR functionToResolve
+) 
+{
+    KAPC_STATE apc            = { 0 };
+    PVOID      moduleBase     = NULL;
+    BOOLEAN    inWin32kModule = FALSE;
 
-    if (strcmp(ModuleName, "ntoskrnl.exe") == 0) {
-        ModuleBase = BeGlobals::NtOsKrnlAddr;
+    if (strcmp(moduleName, "ntoskrnl.exe") == 0) 
+    {
+        moduleBase = BeGlobals::NtOsKrnlAddr;
     }
-    else if (strcmp(ModuleName, "win32kbase.sys") == 0) {
-        ModuleBase = BeGlobals::Win32kBaseAddr;
-        InWin32kModule = TRUE;
+    else if (strcmp(moduleName, "win32kbase.sys") == 0) 
+    {
+        moduleBase = BeGlobals::Win32kBaseAddr;
+        inWin32kModule = TRUE;
     }
-    else {
+    else 
+    {
         LOG_MSG("ERROR: Invalid module\n");
         return NULL;
     }
@@ -163,46 +168,46 @@ BeGetSystemRoutineAddress(
     // TODO refactor to dedicated function
     // https://www.unknowncheats.me/forum/general-programming-and-reversing/492970-reading-memory-win32kbase-sys.html
     //
-    if (InWin32kModule)
+    if (inWin32kModule)
     {
         //
         // Attach to winlogon
         //
-        KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
+        KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
     }
 
     //
     // Parse headers and export directory
     //
-    PFULL_IMAGE_NT_HEADERS  NtHeader  = (PFULL_IMAGE_NT_HEADERS)((ULONG_PTR)ModuleBase + ((PIMAGE_DOS_HEADER)ModuleBase)->e_lfanew);
-    PIMAGE_EXPORT_DIRECTORY ExportDir = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)ModuleBase + NtHeader->OptionalHeader.DataDirectory[0].VirtualAddress);
+    PFULL_IMAGE_NT_HEADERS  ntHeader  = (PFULL_IMAGE_NT_HEADERS)((ULONG_PTR)moduleBase + ((PIMAGE_DOS_HEADER)moduleBase)->e_lfanew);
+    PIMAGE_EXPORT_DIRECTORY exportDir = (PIMAGE_EXPORT_DIRECTORY)((ULONG_PTR)moduleBase + ntHeader->OptionalHeader.DataDirectory[0].VirtualAddress);
 
-    PULONG  AddrOfNames    = (PULONG)((ULONG_PTR)ModuleBase + ExportDir->AddressOfNames);
-    PULONG  AddrOfFuncs    = (PULONG)((ULONG_PTR)ModuleBase + ExportDir->AddressOfFunctions);
-    PUSHORT AddrOfOrdinals = (PUSHORT)((ULONG_PTR)ModuleBase + ExportDir->AddressOfNameOrdinals);
+    PULONG  addrOfNames    = (PULONG)((ULONG_PTR)moduleBase + exportDir->AddressOfNames);
+    PULONG  addrOfFuncs    = (PULONG)((ULONG_PTR)moduleBase + exportDir->AddressOfFunctions);
+    PUSHORT addrOfOrdinals = (PUSHORT)((ULONG_PTR)moduleBase + exportDir->AddressOfNameOrdinals);
 
     //
     // Look through export directory until function is found and return its address
     //
-    for (UINT32 I = 0; I < ExportDir->NumberOfNames; ++I)
+    for (UINT32 i = 0; i < exportDir->NumberOfNames; ++i)
     {
-        PCHAR CurrentFunctionName = (PCHAR)((ULONG_PTR)ModuleBase + (ULONG_PTR)AddrOfNames[I]);
+        PCHAR currentFunctionName = (PCHAR)((ULONG_PTR)moduleBase + (ULONG_PTR)addrOfNames[i]);
 
-        if (strcmp(CurrentFunctionName, FunctionToResolve) == 0)
+        if (strcmp(currentFunctionName, functionToResolve) == 0)
         {
-            PULONG Addr = (PULONG)((ULONG_PTR)ModuleBase + (ULONG_PTR)AddrOfFuncs[AddrOfOrdinals[I]]);
+            PULONG addr = (PULONG)((ULONG_PTR)moduleBase + (ULONG_PTR)addrOfFuncs[addrOfOrdinals[i]]);
 
-            LOG_MSG("Found: 0x%llx\n", (ULONG_PTR)Addr);
+            LOG_MSG("Found: 0x%llx\n", (ULONG_PTR)addr);
 
-            if (InWin32kModule)
-                KeUnstackDetachProcess(&Apc);
+            if (inWin32kModule)
+                KeUnstackDetachProcess(&apc);
 
-            return (PVOID)Addr;
+            return (PVOID)addr;
         }
     }
 
-    if (InWin32kModule)
-        KeUnstackDetachProcess(&Apc);
+    if (inWin32kModule)
+        KeUnstackDetachProcess(&apc);
 
     //
     // Else return null

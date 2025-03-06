@@ -16,18 +16,20 @@
  * @return PWCH Pointer to the character following the last backslash in the path.
  */
 PWCH
-BeGetFilenameFromPath(_In_ PWCH FullPath)
+BeGetFilenameFromPath(
+    _In_ PWCH fullPath
+)
 {
     //
     // Find the last occurrence of backslash in the full path
     //
-    PWCH LastSlash = nullptr;
-    PWCH current   = FullPath;
+    PWCH lastSlash = nullptr;
+    PWCH current   = fullPath;
     while (*current != L'\0')
     {
         if (*current == L'\\')
         {
-            LastSlash = current;
+            lastSlash = current;
         }
         current++;
     }
@@ -35,16 +37,16 @@ BeGetFilenameFromPath(_In_ PWCH FullPath)
     //
     // If a backslash is found, return the pointer to the character after the backslash
     //
-    if (LastSlash != nullptr)
+    if (lastSlash != nullptr)
     {
-        return LastSlash + 1;
+        return lastSlash + 1;
     }
     else
     {
         //
         // Otherwise, return the original pointer (assuming fullPath points to the filename itself)
         //
-        return FullPath;
+        return fullPath;
     }
 }
 
@@ -56,19 +58,21 @@ BeGetFilenameFromPath(_In_ PWCH FullPath)
  * @return NTSTATUS STATUS_SUCCESS if successful, otherwise an error code.
  */
 NTSTATUS
-BeGetNtfsDriverObject(_Out_ PDRIVER_OBJECT* NtfsDriverObject)
+BeGetNtfsDriverObject(
+    _Out_ PDRIVER_OBJECT* pNtfsDriverObject
+)
 {
-    UNICODE_STRING    NtfsDriverName = RTL_CONSTANT_STRING(L"\\FileSystem\\NTFS");
-    OBJECT_ATTRIBUTES ObjAttr        = { 0 };
+    UNICODE_STRING    usNtfsDriverName = RTL_CONSTANT_STRING(L"\\FileSystem\\NTFS");
+    OBJECT_ATTRIBUTES oa = { 0 };
 
-    InitializeObjectAttributes(&ObjAttr, &NtfsDriverName, OBJ_CASE_INSENSITIVE, NULL, NULL);
+    InitializeObjectAttributes(&oa, &usNtfsDriverName, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
     //
     // Get a pointer to the driver object representing the NTFS driver
     //
-    NTSTATUS Status = BeGlobals::pObReferenceObjectByName(&NtfsDriverName, OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType, KernelMode, NULL, (PVOID*)NtfsDriverObject);
-    if (!NT_SUCCESS(Status))
-        return Status;
+    NTSTATUS status = BeGlobals::pObReferenceObjectByName(&usNtfsDriverName, OBJ_CASE_INSENSITIVE, NULL, 0, *IoDriverObjectType, KernelMode, NULL, (PVOID*)pNtfsDriverObject);
+    if (!NT_SUCCESS(status))
+        return status;
 
     return STATUS_SUCCESS;
 }
@@ -84,56 +88,57 @@ BeGetNtfsDriverObject(_Out_ PDRIVER_OBJECT* NtfsDriverObject)
  */
 NTSTATUS
 BeReadFile(
-    _In_  PCWSTR  FilePath,
-    _Out_ PVOID*  OutBuffer,
-    _Out_ PSIZE_T Outsize
-) {
-    HANDLE                    HFile      = NULL;
-    OBJECT_ATTRIBUTES         ObjAttr    = { 0 };
-    IO_STATUS_BLOCK           IoStatus   = { 0 };
-    UNICODE_STRING            Path       = { 0 };
-    FILE_STANDARD_INFORMATION FileInfo   = { 0 };
-    LARGE_INTEGER             ByteOffset = { 0 };
+    _In_  PCWSTR  filePath,
+    _Out_ PVOID*  outBuffer,
+    _Out_ PSIZE_T outsize
+) 
+{
+    HANDLE                    hFile      = NULL;
+    OBJECT_ATTRIBUTES         oa         = { 0 };
+    IO_STATUS_BLOCK           ioStatus   = { 0 };
+    UNICODE_STRING            path       = { 0 };
+    FILE_STANDARD_INFORMATION fileInfo   = { 0 };
+    LARGE_INTEGER             byteOffset = { 0 };
 
-    WCHAR NtPath[256 + 10];
-    RtlZeroMemory(NtPath, sizeof(NtPath));
+    WCHAR ntPath[256 + 10];
+    RtlZeroMemory(ntPath, sizeof(ntPath));
 
     //
     // Construct the full NT path by prefixing "\??\"
     //
-    NTSTATUS Status = RtlStringCchCopyW(NtPath, ARRAYSIZE(NtPath), L"\\??\\");
-    if (!NT_SUCCESS(Status))
+    NTSTATUS status = RtlStringCchCopyW(ntPath, ARRAYSIZE(ntPath), L"\\??\\");
+    if (!NT_SUCCESS(status))
     {
-        LOG_MSG("RtlStringCchCopyW Failed With Status: %d\n", Status);
-        return Status;
+        LOG_MSG("RtlStringCchCopyW Failed With Status: %d\n", status);
+        return status;
     }
 
     //
     // Append the provided file path to the NT path
     //
-    Status = RtlStringCchCatW(NtPath, ARRAYSIZE(NtPath), FilePath);
-    if (!NT_SUCCESS(Status))
+    status = RtlStringCchCatW(ntPath, ARRAYSIZE(ntPath), filePath);
+    if (!NT_SUCCESS(status))
     {
-        LOG_MSG("RtlStringCchCatW Failed With Status: %d\n", Status);
-        return Status;
+        LOG_MSG("RtlStringCchCatW Failed With Status: %d\n", status);
+        return status;
     }
 
-    LOG_MSG("File NT: %ws\n", NtPath);
+    LOG_MSG("File NT: %ws\n", ntPath);
 
     //
     // Initialize the UNICODE_STRING and OBJECT_ATTRIBUTES for the file
     //
-    RtlInitUnicodeString(&Path, NtPath);
-    InitializeObjectAttributes(&ObjAttr, &Path, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+    RtlInitUnicodeString(&path, ntPath);
+    InitializeObjectAttributes(&oa, &path, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
 
     //
     // Open the file with read access
     //
-    Status = ZwCreateFile(
-        &HFile,
+    status = ZwCreateFile(
+        &hFile,
         GENERIC_READ | SYNCHRONIZE,
-        &ObjAttr,
-        &IoStatus,
+        &oa,
+        &ioStatus,
         NULL,
         FILE_ATTRIBUTE_NORMAL,
         FILE_SHARE_READ | FILE_SHARE_DELETE,
@@ -143,58 +148,58 @@ BeReadFile(
         NULL
     );
 
-    if (!NT_SUCCESS(Status))
+    if (!NT_SUCCESS(status))
     {
-        LOG_MSG("ZwCreateFile Failed With Status: %d\n", Status);
-        return Status;
+        LOG_MSG("ZwCreateFile Failed With Status: %d\n", status);
+        return status;
     }
 
     //
     // Query the file size
     //
-    Status = ZwQueryInformationFile(
-        HFile,
-        &IoStatus,
-        &FileInfo,
+    status = ZwQueryInformationFile(
+        hFile,
+        &ioStatus,
+        &fileInfo,
         sizeof(FILE_STANDARD_INFORMATION),
         FileStandardInformation
     );
 
-    if (!NT_SUCCESS(Status))
+    if (!NT_SUCCESS(status))
     {
-        LOG_MSG("ZwQueryInformationFile Failed With Status: %d\n", Status);
-        return Status;
+        LOG_MSG("ZwQueryInformationFile Failed With Status: %d\n", status);
+        return status;
     }
 
     //
     // Allocate a buffer to store the file contents
     //
-    SIZE_T Size = FileInfo.EndOfFile.QuadPart;
-    *OutBuffer  = ExAllocatePool2(POOL_FLAG_NON_PAGED, Size, DRIVER_TAG);
-    *Outsize    = Size;
+    SIZE_T size = fileInfo.EndOfFile.QuadPart;
+    *outBuffer  = ExAllocatePool2(POOL_FLAG_NON_PAGED, size, DRIVER_TAG);
+    *outsize    = size;
 
     //
     // Read the file into the allocated buffer
     //
-    Status = ZwReadFile(
-        HFile,
+    status = ZwReadFile(
+        hFile,
         NULL,
         NULL,
         NULL,
-        &IoStatus,
-        *OutBuffer,
-        static_cast<ULONG>(Size),
-        &ByteOffset,
+        &ioStatus,
+        *outBuffer,
+        static_cast<ULONG>(size),
+        &byteOffset,
         NULL
     );
 
-    if (!NT_SUCCESS(Status))
+    if (!NT_SUCCESS(status))
     {
-        LOG_MSG("ZwReadFile Failed With Status: %d\n", Status);
-        return Status;
+        LOG_MSG("ZwReadFile Failed With Status: %d\n", status);
+        return status;
     }
 
-    return Status;
+    return status;
 }
 
 #if DENY_DRIVER_FILE_ACCESS

