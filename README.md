@@ -4,7 +4,7 @@
 <img src="./img/Banshee.jpg" alt="Banshee" width="400" />
 </p>
 
-*DISCLAIMER: This was the first driver code I ever wrote. As such, there is some pretty bad stuff in here, which you definitely should not copy.*
+*DISCLAIMER: This was the first driver code I ever wrote back then. As such, there is still some bad stuff in here, so be cautious copy pasting code from here.*
 
 Learning about Windows rootkits lately, so here is my own implementation of some techniques. For an overview, see **Features** below.
 
