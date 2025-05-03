@@ -1,5 +1,7 @@
 #pragma once
 
+#include "WinTypes.hpp"
+
 #define DRIVER_TAG 'ehsB'
 #define BANSHEE_VERSION "v0.1.1\n"
 

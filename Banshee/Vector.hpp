@@ -6,41 +6,10 @@
 #include "DriverMeta.hpp"
 
 // https://github.com/gauraVsehgaL/cppkernel/blob/master/vector.hpp
-
-PVOID __cdecl operator new(SIZE_T size, POOL_TYPE Pool)
-{
-    return ExAllocatePoolWithTag(Pool, size, DRIVER_TAG);
-}
-
-PVOID __cdecl operator new[](SIZE_T size, POOL_TYPE Pool)
-{
-    return ExAllocatePoolWithTag(Pool, size, DRIVER_TAG);
-}
-
-//    Placement new
+// Placement new
 inline PVOID operator new(SIZE_T, PVOID where)
 {
     return where;
-}
-
-VOID __cdecl operator delete(PVOID ptr, SIZE_T)
-{
-    ExFreePool(ptr);
-}
-
-VOID __cdecl operator delete(PVOID ptr)
-{
-    ExFreePool(ptr);
-}
-
-VOID __cdecl operator delete[](PVOID ptr, SIZE_T)
-{
-    ExFreePool(ptr);
-}
-
-VOID __cdecl operator delete[](PVOID ptr)
-{
-    ExFreePool(ptr);
 }
 
 // TEMPLATE CLASS remove_reference

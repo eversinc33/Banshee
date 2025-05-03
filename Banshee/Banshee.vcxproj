@@ -128,10 +128,22 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AddressUtils.cpp" />
+    <ClCompile Include="CallbackUtils.cpp" />
+    <ClCompile Include="Commands.cpp" />
+    <ClCompile Include="FileUtils.cpp" />
+    <ClCompile Include="Globals.cpp" />
+    <ClCompile Include="Injection.cpp" />
+    <ClCompile Include="Keylogger.cpp" />
+    <ClCompile Include="MemoryUtils.cpp" />
+    <ClCompile Include="MIsc.cpp" />
+    <ClCompile Include="ProcessUtils.cpp" />
+    <ClCompile Include="Vector.cpp" />
     <ClInclude Include="AutoLock.hpp" />
     <ClInclude Include="CallbackUtils.hpp" />
     <ClCompile Include="Driver.cpp" />
     <ClInclude Include="AddressUtils.hpp" />
+    <ClInclude Include="Debug.hpp" />
     <ClInclude Include="FileUtils.hpp" />
     <ClInclude Include="Injection.hpp" />
     <ClInclude Include="Keylogger.hpp" />

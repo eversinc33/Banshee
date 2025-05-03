@@ -82,16 +82,16 @@ typedef struct _KLDR_DATA_TABLE_ENTRY
 #define WIN_1122H2 22621
 
 // Protection Levels - Windows Internals Part 1 - Page 115 (7th english edition)
-BYTE PS_PROTECTED_SYSTEM = 0x72; // Geschützt WinSystem
-BYTE PS_PROTECTED_WULONGCB = 0x62; // Geschützt WinTcb
-BYTE PS_PROTECTED_WULONGCB_LIGHT = 0x61; // PPL WinTcb
-BYTE PS_PROTECTED_WINDOWS = 0x52; // Geschützt Windows
-BYTE PS_PROTECTED_WINDOWS_LIGHT = 0x51; // PPL Windows
-BYTE PS_PROTECTED_LSA_LIGHT = 0x41; // PPL Lsa
-BYTE PS_PROTECTED_ANTIMALWARE_LIGHT = 0x31; // PPL Anti - malware
-BYTE PS_PROTECTED_AUTHENTICODE = 0x21; // Geschützt Authenticode
-BYTE PS_PROTECTED_AUTHENTICODE_LIGHT = 0x11; // PPL Authenticode
-BYTE PS_PROTECTED_NONE = 0x00; // Keine Keine
+#define PS_PROTECTED_SYSTEM 0x72; // Geschützt WinSystem
+#define PS_PROTECTED_WULONGCB 0x62; // Geschützt WinTcb
+#define PS_PROTECTED_WULONGCB_LIGHT 0x61; // PPL WinTcb
+#define PS_PROTECTED_WINDOWS 0x52; // Geschützt Windows
+#define PS_PROTECTED_WINDOWS_LIGHT 0x51; // PPL Windows
+#define PS_PROTECTED_LSA_LIGHT 0x41; // PPL Lsa
+#define PS_PROTECTED_ANTIMALWARE_LIGHT 0x31; // PPL Anti - malware
+#define PS_PROTECTED_AUTHENTICODE 0x21; // Geschützt Authenticode
+#define PS_PROTECTED_AUTHENTICODE_LIGHT 0x11; // PPL Authenticode
+#define PS_PROTECTED_NONE 0x00; // Keine Keine
 
 // reactos kernel callback structs
 

