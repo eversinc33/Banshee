@@ -95,7 +95,7 @@ I recommend to enable debugging for the kernel. Run the following from an admini
 bcdedit /debug on
 ```
 
-Afterwards load the driver with [kdmapper](https://github.com/TheCruZ/kdmapper). 
+Afterwards load the driver with [kdmapper](https://github.com/TheCruZ/kdmapper). Just drag the .sys on kdmapper.exe. It's that easy.
 
 You can then run the client, after compiling the solution, with e.g.:
 
