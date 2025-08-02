@@ -61,10 +61,6 @@ We can directly modify this value (aka Direct Kernel Object Modification or DKOM
 
 For now, only Process- and Thread-Creation kernel callbacks are enumerated, by parsing the `PsSetCreateNotifyProcess/ThreadRoutine` routine to reach the private `Psp*` routine and then parsing the address of the array, where kernel callbacks are stored. With `erase`, callbacks can be erased by overwriting the function pointer to point to an empty function in Banshee instead.
 
-#### Protecting the driver file 
-
-By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any process from opening a handle to our driver file (This will probably change to a filter driver concept soon).
-
 #### Keylogging from the Kernel
 
 Using the undocumented `gafAsyncKeyState` function we can parse keystrokes from a session without using any API calls besides reading memory (https://www.unknowncheats.me/forum/c-and-c-/327461-kernel-mode-key-input.html).
@@ -78,6 +74,10 @@ Inject shellcode into arbitrary processes from the kernel. Thank you @joaoviicto
 #### Communication over SharedMemory
 
 Banshee does not communicate over IOCTLs as most drivers do, but rather over shared memory. This way no `DriverObject` needs to be registered, which would point to our unbacked memory region (if mapped to memory) and would lead anti-rootkit software directly onto us. 
+
+#### Protecting the driver file 
+
+By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any process from opening a handle to our driver file.
 
 ## Patchguard triggering features
 
