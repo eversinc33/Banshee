@@ -69,6 +69,10 @@ By hooking the NTFS filesystem's `IRP_MJ_CREATE` handler, we can block any proce
 
 Using the undocumented `gafAsyncKeyState` function we can parse keystrokes from a session without using any API calls besides reading memory (https://www.unknowncheats.me/forum/c-and-c-/327461-kernel-mode-key-input.html).
 
+#### Shellcode Injection
+
+Inject shellcode into arbitrary processes from the kernel. Thank you @joaoviictorti for the pull request! <3
+
 ## Misc
 
 #### Communication over SharedMemory
